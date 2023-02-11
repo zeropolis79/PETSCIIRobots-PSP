@@ -6,28 +6,11 @@
  * vesuri@jormas.com
  */
 
-#if defined(_AMIGA)
-#include "PlatformAmiga.h"
-#elif defined(_PSP)
 #include "PlatformPSP.h"
-#else
-#include "PlatformSDL.h"
-#endif
 #include "petrobots.h"
 
 uint8_t* DESTRUCT_PATH; // Destruct path array (256 bytes)
 uint8_t* TILE_ATTRIB;   // Tile attrib array (256 bytes)
-#ifndef PLATFORM_SPRITE_SUPPORT
-uint8_t* TILE_DATA_TL;  // Tile character top-left (256 bytes)
-uint8_t* TILE_DATA_TM;  // Tile character top-middle (256 bytes)
-uint8_t* TILE_DATA_TR;  // Tile character top-right (256 bytes)
-uint8_t* TILE_DATA_ML;  // Tile character middle-left (256 bytes)
-uint8_t* TILE_DATA_MM;  // Tile character middle-middle (256 bytes)
-uint8_t* TILE_DATA_MR;  // Tile character middle-right (256 bytes)
-uint8_t* TILE_DATA_BL;  // Tile character bottom-left (256 bytes)
-uint8_t* TILE_DATA_BM;  // Tile character bottom-middle (256 bytes)
-uint8_t* TILE_DATA_BR;  // Tile character bottom-right (256 bytes)
-#endif
 
 // These arrays can go anywhere in RAM
 uint8_t UNIT_TIMER_A[64];   // Primary timer for units (64 bytes)
@@ -38,12 +21,10 @@ uint8_t EXP_BUFFER[16];     // Explosion Buffer (16 bytes)
 uint8_t MAP_PRECALC[MAP_WINDOW_SIZE];    // Stores pre-calculated objects for map window (77 bytes)
 uint8_t MAP_PRECALC_DIRECTION[MAP_WINDOW_SIZE];    // Stores pre-calculated object directions for map window (77 bytes)
 uint8_t MAP_PRECALC_TYPE[MAP_WINDOW_SIZE];    // Stores pre-calculated object types for map window (77 bytes)
-#ifdef OPTIMIZED_MAP_RENDERING
 uint8_t PREVIOUS_MAP_BACKGROUND[MAP_WINDOW_SIZE];
 uint8_t PREVIOUS_MAP_BACKGROUND_VARIANT[MAP_WINDOW_SIZE];
 uint8_t PREVIOUS_MAP_FOREGROUND[MAP_WINDOW_SIZE];
 uint8_t PREVIOUS_MAP_FOREGROUND_VARIANT[MAP_WINDOW_SIZE];
-#endif
 
 // The following are the locations where the current
 // key controls are stored.  These must be set before
@@ -79,7 +60,6 @@ enum KEYS {
 };
 
 // MAP FILES CONSIST OF EVERYTHING FROM THIS POINT ON
-#ifdef _PSP
 uint8_t MAP_DATA[8960];
 uint8_t* UNIT_TYPE = MAP_DATA;
 uint8_t* UNIT_LOC_X = MAP_DATA + 1 * 64;
@@ -90,18 +70,6 @@ uint8_t* UNIT_C = MAP_DATA + 5 * 64;
 uint8_t* UNIT_D = MAP_DATA + 6 * 64;
 int8_t* UNIT_HEALTH = (int8_t*)MAP_DATA + 7 * 64;
 uint8_t* MAP = MAP_DATA + 8 * 64 + 256;
-#else
-uint8_t UNIT_TYPE[64];  // Unit type 0=none (64 bytes)
-uint8_t UNIT_LOC_X[64]; // Unit X location (64 bytes)
-uint8_t UNIT_LOC_Y[64]; // Unit X location (64 bytes)
-uint8_t UNIT_A[64];
-uint8_t UNIT_B[64];
-uint8_t UNIT_C[64];
-uint8_t UNIT_D[64];
-int8_t UNIT_HEALTH[64];    // Unit health (0 to 11) (64 bytes)
-uint8_t MAP_UNUSED[256];
-uint8_t MAP[8 * 1024];      // Location of MAP (8K)
-#endif
 // END OF MAP FILE
 
 uint8_t TILE;           // The tile number to be plotted
@@ -176,9 +144,6 @@ int main(int argc, char *argv[])
 #endif
 
     platform->stopNote(); // RESET SOUND TO ZERO
-#ifdef PLATFORM_STDOUT_MESSAGES
-    DISPLAY_LOAD_MESSAGE1();
-#endif
     TILE_LOAD_ROUTINE();
     SETUP_INTERRUPT();
     SET_CONTROLS(); // copy initial key controls
@@ -191,24 +156,18 @@ int main(int argc, char *argv[])
 void INIT_GAME()
 {
     SCREEN_SHAKE = 0;
-#ifdef PLATFORM_LIVE_MAP_SUPPORT
     LIVE_MAP_ON = 0;
-#endif
     RESET_KEYS_AMMO();
     platform->fadeScreen(0, false);
     DISPLAY_GAME_SCREEN();
     DISPLAY_LOAD_MESSAGE2();
     platform->fadeScreen(15, false);
     MAP_LOAD_ROUTINE();
-#ifdef PLATFORM_MODULE_BASED_AUDIO
     START_IN_GAME_MUSIC();
-#endif
     SET_DIFF_LEVEL();
     ANIMATE_PLAYER();
     CACULATE_AND_REDRAW();
-#ifdef OPTIMIZED_MAP_RENDERING
     INVALIDATE_PREVIOUS_MAP();
-#endif
     DRAW_MAP_WINDOW();
     DISPLAY_PLAYER_HEALTH();
     DISPLAY_KEYS();
@@ -220,15 +179,8 @@ void INIT_GAME()
     MAIN_GAME_LOOP();
 }
 
-#ifdef PLATFORM_BUILTIN_TILESET
 #define TILENAME 0
-#else
-#define TILENAME "tileset.pet"
-#endif
 char MAPNAME[] = "level-a";
-#ifdef PLATFORM_STDOUT_MESSAGES
-const char* LOADMSG1 = "loading tiles...\x0d";
-#endif
 uint8_t KEYS = 0; // bit0=spade bit2=heart bit3=star
 uint8_t AMMO_PISTOL = 0; // how much ammo for the pistol
 uint8_t AMMO_PLASMA = 0; // how many shots of the plasmagun
@@ -246,25 +198,11 @@ uint8_t PLASMA_ACT = 0; // 0=No plasma fire active 1=plasma fire active
 uint8_t RANDOM = 0; // used for random number generation
 uint8_t BORDER = 0; // Used for border flash timing
 uint8_t SCREEN_SHAKE = 0; // 1=shake 0=no shake
-#if (PLATFORM_INTRO_OPTIONS == 4)
-uint8_t CONTROL = 0; // 0=keyboard 1=custom keys 2=snes
-#else
 uint8_t CONTROL = 2; // 0=keyboard 1=custom keys 2=snes
-#endif
 uint16_t BORDER_COLOR = 0xf00; // Used for border flash coloring
-#if defined(_AMIGA)
-char INTRO_MESSAGE[] = "welcome to amiga-robots!\xff"
-                       "by david murray 2021\xff"
-                       "amiga port by vesa halttunen";
-#elif defined(_PSP)
 char INTRO_MESSAGE[] = "welcome to psp-robots!\xff"
                        "by david murray 2021\xff"
                        "psp port by vesa halttunen";
-#else
-char INTRO_MESSAGE[] = "welcome to sdl-robots!\xff"
-                       "by david murray 2021\xff"
-                       "sdl port by vesa halttunen";
-#endif
 char MSG_CANTMOVE[] = "can't move that!";
 char MSG_BLOCKED[] = "blocked!";
 char MSG_SEARCHING[] = "searching";
@@ -303,37 +241,11 @@ char MAP_NAMES[] = "01-research lab "
                    "11-river death  "
                    "12-bunker       "
                    "13-castle robot "
-#ifdef _PSP
                    "14-rocket center"
-#endif
                    ;
-#ifdef _PSP
 #define MAP_COUNT 14
-#else
-#define MAP_COUNT 13
-#endif
 
-#ifdef PLATFORM_MODULE_BASED_AUDIO
 uint8_t MUSIC_ON = 1; // 0=off 1=on
-#else
-// THE FOLLOWING ARE USED BY THE SOUND SYSTEM*
-uint8_t TEMPO_TIMER = 0; // used for counting down to the next tick
-uint8_t TEMPO = 7; // How many IRQs between ticks
-uint8_t DATA_LINE = 0; // used for playback to keep track of which line we are executing.
-uint8_t ARP_MODE = 0; // 0=no 1=major 2=minor 3=sus4
-uint8_t CHORD_ROOT = 0; // root note of the chord
-uint8_t MUSIC_ON = 0; // 0=off 1=on
-uint8_t SOUND_EFFECT = 0xff; // FF=OFF or number of effect in progress
-#endif
-
-#ifdef PLATFORM_STDOUT_MESSAGES
-void DISPLAY_LOAD_MESSAGE1()
-{
-    for (int Y = 0; Y != 17; Y++) {
-        platform->chrout(LOADMSG1[Y]);
-    }
-}
-#endif
 
 // Displays loading message for map.
 void DISPLAY_LOAD_MESSAGE2()
@@ -362,9 +274,6 @@ void SETUP_INTERRUPT()
 // there.
 void RUNIRQ()
 {
-#ifndef PLATFORM_MODULE_BASED_AUDIO
-    MUSIC_ROUTINE();
-#endif
     UPDATE_GAME_CLOCK();
     ANIMATE_WATER();
     BGTIMER1 = 1;
@@ -378,11 +287,6 @@ void RUNIRQ()
         BORDER--;
         platform->fadeScreen(15 - BORDER);
     }
-#ifdef PLATFORM_HARDWARE_BASED_SHAKE_SCREEN
-    if (CLOCK_ACTIVE != 0 && SCREEN_SHAKE != 0) {
-        platform->shakeScreen();
-    }
-#endif
     // Back to usual IRQ routine
 }
 uint8_t BGTIMER1 = 0;
@@ -508,7 +412,6 @@ void MAIN_GAME_LOOP()
                 TOGGLE_MUSIC();
                 CLEAR_KEY_BUFFER();
             }
-#ifdef PLATFORM_LIVE_MAP_SUPPORT
             else if (A == KEY_CONFIG[KEY_LIVE_MAP]) {
                 TOGGLE_LIVE_MAP();
                 CLEAR_KEY_BUFFER();
@@ -516,7 +419,6 @@ void MAIN_GAME_LOOP()
                 TOGGLE_LIVE_MAP_ROBOTS();
                 CLEAR_KEY_BUFFER();
             }
-#endif
         }
         // SNES CONTROLLER starts here
         if (B != 0) {
@@ -572,7 +474,6 @@ void MAIN_GAME_LOOP()
                         CYCLE_WEAPON();
                         KEYTIMER = 15;
                     }
-#ifdef PLATFORM_LIVE_MAP_SUPPORT
                     if (B & Platform::JoystickLeft) {
                         TOGGLE_LIVE_MAP();
                         CLEAR_KEY_BUFFER();
@@ -581,7 +482,6 @@ void MAIN_GAME_LOOP()
                         TOGGLE_LIVE_MAP_ROBOTS();
                         CLEAR_KEY_BUFFER();
                     }
-#endif
                     if (B & Platform::JoystickBlue) {
                         done = PAUSE_GAME();
                     }
@@ -589,12 +489,6 @@ void MAIN_GAME_LOOP()
                         TOGGLE_MUSIC();
                         CLEAR_KEY_BUFFER();
                     }
-#ifdef GAMEPAD_CD32
-                    if (B == Platform::JoystickPlay) {
-                        USE_ITEM();
-                        KEYTIMER = 15;
-                    }
-#endif
                 } else {
                     if (B & Platform::JoystickGreen) {
                         FIRE_LEFT();
@@ -620,12 +514,10 @@ void MAIN_GAME_LOOP()
                         MOVE_OBJECT();
                         KEYTIMER = 15;
                     }
-#ifndef GAMEPAD_CD32
                     if (B == Platform::JoystickExtra) {
                         USE_ITEM();
                         KEYTIMER = 15;
                     }
-#endif
                 }
             } else {
                 if (B & Platform::JoystickBlue) {
@@ -676,11 +568,7 @@ void TOGGLE_MUSIC()
     if (MUSIC_ON == 1) {
         PRINT_INFO(MSG_MUSICOFF);
         MUSIC_ON = 0;
-#ifdef PLATFORM_MODULE_BASED_AUDIO
         platform->playModule(Platform::ModuleSoundFX);
-#else
-        platform->stopNote(); // turn off sound
-#endif
     } else {
         PRINT_INFO(MSG_MUSICON);
         MUSIC_ON = 1;
@@ -690,22 +578,9 @@ void TOGGLE_MUSIC()
 
 void START_IN_GAME_MUSIC()
 {
-#ifdef PLATFORM_MODULE_BASED_AUDIO
     platform->playModule(MUSIC_ON == 1 ? LEVEL_MUSIC[SELECTED_MAP] : Platform::ModuleSoundFX);
-#else
-    MUSIC_ON = 1;
-    if (SOUND_EFFECT == 0xFF) { // FF=NO sound effect in progress
-        DATA_LINE = 0;
-        CUR_PATTERN = IN_GAME_MUSIC1 + (LEVEL_MUSIC[SELECTED_MAP] << 8);
-    } else {
-        // apparently a sound-effect is active, so we do things differently.
-        DATA_LINE_TEMP = 0;
-        PATTERN_TEMP = IN_GAME_MUSIC1 + (LEVEL_MUSIC[SELECTED_MAP] << 8);
-    }
-#endif
 }
 
-#ifdef PLATFORM_MODULE_BASED_AUDIO
 Platform::Module LEVEL_MUSIC[] = {
     Platform::ModuleInGame1,
     Platform::ModuleInGame2,
@@ -719,14 +594,9 @@ Platform::Module LEVEL_MUSIC[] = {
     Platform::ModuleInGame2,
     Platform::ModuleInGame3,
     Platform::ModuleInGame4,
-    Platform::ModuleInGame1
-#ifdef _PSP
-    ,Platform::ModuleInGame2
-#endif
+    Platform::ModuleInGame1,
+    Platform::ModuleInGame2
 };
-#else
-uint8_t LEVEL_MUSIC[] = { 0,1,2,0,1,2,0,1,2,0,1,2,0 };
-#endif
 
 // TEMP ROUTINE TO GIVE ME ALL ITEMS AND WEAPONS
 void CHEATER()
@@ -741,9 +611,7 @@ void CHEATER()
     INV_MAGNET = 100;
     SELECTED_WEAPON = 1;
     SELECTED_ITEM = 1;
-#ifdef PLATFORM_IMAGE_SUPPORT
     REDRAW_WINDOW = 1;
-#endif
     DISPLAY_KEYS();
     DISPLAY_WEAPON();
     DISPLAY_ITEM();
@@ -817,9 +685,7 @@ void USE_ITEM()
 
 void USE_BOMB()
 {
-#ifdef PLATFORM_CURSOR_SHAPE_SUPPORT
     platform->setCursorShape(Platform::ShapeUse);
-#endif
     USER_SELECT_OBJECT();
     // NOW TEST TO SEE IF THAT SPOT IS OPEN
     if (BOMB_MAGNET_COMMON1()) {
@@ -853,9 +719,7 @@ void USE_MAGNET()
     if (MAGNET_ACT != 0) { // only one magnet active at a time.
         return;
     }
-#ifdef PLATFORM_CURSOR_SHAPE_SUPPORT
     platform->setCursorShape(Platform::ShapeUse);
-#endif
     USER_SELECT_OBJECT();
     // NOW TEST TO SEE IF THAT SPOT IS OPEN
     if (BOMB_MAGNET_COMMON1()) {
@@ -883,12 +747,7 @@ void USE_MAGNET()
 
 bool BOMB_MAGNET_COMMON1()
 {
-#ifdef PLATFORM_CURSOR_SUPPORT
     platform->hideCursor();
-#else
-    CURSOR_ON = 0;
-    DRAW_MAP_WINDOW(); // ERASE THE CURSOR
-#endif
     MAP_X = CURSOR_X + MAP_WINDOW_X;
     MOVTEMP_UX = MAP_X;
     MAP_Y = CURSOR_Y + MAP_WINDOW_Y;
@@ -1229,20 +1088,14 @@ uint8_t KEY_FAST = 0; // 0=DEFAULT STATE
 // an object such as a crate, chair, or plant.
 void SEARCH_OBJECT()
 {
-#ifdef PLATFORM_CURSOR_SHAPE_SUPPORT
     platform->setCursorShape(Platform::ShapeSearch);
-#endif
     USER_SELECT_OBJECT();
     REDRAW_WINDOW = 1;
     // first check of object is searchable
     CALC_COORDINATES();
     GET_TILE_FROM_MAP();
     if ((TILE_ATTRIB[TILE] & 0x40) == 0) { // %01000000 can search attribute
-#ifdef PLATFORM_CURSOR_SUPPORT
         platform->hideCursor();
-#else
-        CURSOR_ON = 0;
-#endif
     } else {
         // is the tile a crate?
         if (TILE == 41 || TILE == 45 || TILE == 199) { // BIG CRATE / small CRATE / "Pi" CRATE
@@ -1253,22 +1106,15 @@ void SEARCH_OBJECT()
         PRINT_INFO(MSG_SEARCHING);
         for (SEARCHBAR = 0; SEARCHBAR != 8; SEARCHBAR++) {
             for (BGTIMER2 = 18; BGTIMER2 != 0;) { // delay time between search periods
-#ifndef _AMIGA // for binary compatibility with the 1.0 release
                 if (BGTIMER1 != 1) {
                     platform->renderFrame(true);
                 }
-#endif
                 PET_SCREEN_SHAKE();
                 BACKGROUND_TASKS();
             }
             writeToScreenMemory((SCREEN_HEIGHT_IN_CHARACTERS - 1) * SCREEN_WIDTH_IN_CHARACTERS + 9 + SEARCHBAR, 46); // PERIOD
         }
-#ifdef PLATFORM_CURSOR_SUPPORT
         platform->hideCursor();
-#else
-        CURSOR_ON = 0;
-        DRAW_MAP_WINDOW(); // ERASE THE CURSOR
-#endif
         CALC_COORDINATES();
         CHECK_FOR_HIDDEN_UNIT();
         if (UNIT_FIND == 255) {
@@ -1346,18 +1192,9 @@ void USER_SELECT_OBJECT()
     CURSOR_X = UNIT_LOC_X[0] - MAP_WINDOW_X;
     CURSOR_Y = UNIT_LOC_Y[0] - MAP_WINDOW_Y;
 #endif
-#ifdef PLATFORM_CURSOR_SUPPORT
-#ifdef PLATFORM_LIVE_MAP_SUPPORT
     if (LIVE_MAP_ON == 0) {
-#endif
         platform->showCursor(CURSOR_X, CURSOR_Y);
-#ifdef PLATFORM_LIVE_MAP_SUPPORT
     }
-#endif
-#else
-    CURSOR_ON = 1;
-    REVERSE_TILE();
-#endif
     // First ask user which object to move
     while (!platform->quit) {
         if (BGTIMER1 != 1) {
@@ -1366,11 +1203,7 @@ void USER_SELECT_OBJECT()
         PET_SCREEN_SHAKE();
         BACKGROUND_TASKS();
         if (UNIT_TYPE[0] == 0) { // Did player die wile moving something?
-#ifdef PLATFORM_CURSOR_SUPPORT
             platform->hideCursor();
-#else
-            CURSOR_ON = 0;
-#endif
             return;
         }
         uint8_t A = platform->readKeyboard();
@@ -1379,54 +1212,30 @@ void USER_SELECT_OBJECT()
         if (A == KEY_CONFIG[KEY_CURSOR_RIGHT] || A == KEY_CONFIG[KEY_MOVE_RIGHT] || (B & Platform::JoystickRight)) { // CURSOR RIGHT
             UNIT_DIRECTION[0] = 3;
             CURSOR_X++;
-#ifdef PLATFORM_CURSOR_SUPPORT
-#ifdef PLATFORM_LIVE_MAP_SUPPORT
             if (LIVE_MAP_ON == 0) {
-#endif
                 platform->showCursor(CURSOR_X, CURSOR_Y);
-#ifdef PLATFORM_LIVE_MAP_SUPPORT
             }
-#endif
-#endif
             return;
         } else if (A == KEY_CONFIG[KEY_CURSOR_LEFT] || A == KEY_CONFIG[KEY_MOVE_LEFT] || (B & Platform::JoystickLeft)) { // CURSOR LEFT
             UNIT_DIRECTION[0] = 2;
             CURSOR_X--;
-#ifdef PLATFORM_CURSOR_SUPPORT
-#ifdef PLATFORM_LIVE_MAP_SUPPORT
             if (LIVE_MAP_ON == 0) {
-#endif
                 platform->showCursor(CURSOR_X, CURSOR_Y);
-#ifdef PLATFORM_LIVE_MAP_SUPPORT
             }
-#endif
-#endif
             return;
         } else if (A == KEY_CONFIG[KEY_CURSOR_DOWN] || A == KEY_CONFIG[KEY_MOVE_DOWN] || (B & Platform::JoystickDown)) { // CURSOR DOWN
             UNIT_DIRECTION[0] = 1;
             CURSOR_Y++;
-#ifdef PLATFORM_CURSOR_SUPPORT
-#ifdef PLATFORM_LIVE_MAP_SUPPORT
             if (LIVE_MAP_ON == 0) {
-#endif
                 platform->showCursor(CURSOR_X, CURSOR_Y);
-#ifdef PLATFORM_LIVE_MAP_SUPPORT
             }
-#endif
-#endif
             return;
         } else if (A == KEY_CONFIG[KEY_CURSOR_UP] || A == KEY_CONFIG[KEY_MOVE_UP] || (B & Platform::JoystickUp)) { // CURSOR UP
             UNIT_DIRECTION[0] = 0;
             CURSOR_Y--;
-#ifdef PLATFORM_CURSOR_SUPPORT
-#ifdef PLATFORM_LIVE_MAP_SUPPORT
             if (LIVE_MAP_ON == 0) {
-#endif
                 platform->showCursor(CURSOR_X, CURSOR_Y);
-#ifdef PLATFORM_LIVE_MAP_SUPPORT
             }
-#endif
-#endif
             return;
         }
     }
@@ -1434,18 +1243,11 @@ void USER_SELECT_OBJECT()
 
 void MOVE_OBJECT()
 {
-#ifdef PLATFORM_CURSOR_SHAPE_SUPPORT
     platform->setCursorShape(Platform::ShapeMove);
-#endif
     USER_SELECT_OBJECT();
     // now test that object to see if it
     // is allowed to be moved.
-#ifdef PLATFORM_CURSOR_SUPPORT
     platform->hideCursor();
-#else
-    CURSOR_ON = 0;
-    DRAW_MAP_WINDOW(); // ERASE THE CURSOR
-#endif
     CALC_COORDINATES();
     CHECK_FOR_HIDDEN_UNIT();
     MOVTEMP_U = UNIT_FIND;
@@ -1458,18 +1260,9 @@ void MOVE_OBJECT()
     MOVTEMP_O = TILE; // Store which tile it is we are moving
     MOVTEMP_X = MAP_X; // Store original location of object
     MOVTEMP_Y = MAP_Y;
-#ifdef PLATFORM_CURSOR_SUPPORT
-#ifdef PLATFORM_LIVE_MAP_SUPPORT
     if (LIVE_MAP_ON == 0) {
-#endif
         platform->showCursor(CURSOR_X, CURSOR_Y);
-#ifdef PLATFORM_LIVE_MAP_SUPPORT
     }
-#endif
-#else
-    CURSOR_ON = 1;
-    REVERSE_TILE();
-#endif
     // NOW ASK THE USER WHICH DIRECTION TO MOVE IT TO
     while (!platform->quit) {
         if (BGTIMER1 != 1) {
@@ -1478,11 +1271,7 @@ void MOVE_OBJECT()
         PET_SCREEN_SHAKE();
         BACKGROUND_TASKS();
         if (UNIT_TYPE[0] == 0) { // Did player die wile moving something?
-#ifdef PLATFORM_CURSOR_SUPPORT
             platform->hideCursor();
-#else
-            CURSOR_ON = 0;
-#endif
             return;
         }
         // keyboard control
@@ -1506,12 +1295,7 @@ void MOVE_OBJECT()
         }
     }
     // NOW TEST TO SEE IF THAT SPOT IS OPEN
-#ifdef PLATFORM_CURSOR_SUPPORT
     platform->hideCursor();
-#else
-    CURSOR_ON = 0;
-    DRAW_MAP_WINDOW(); // ERASE THE CURSOR
-#endif
     MAP_X = CURSOR_X + MAP_WINDOW_X;
     MOVTEMP_UX = MAP_X;
     MAP_Y = CURSOR_Y + MAP_WINDOW_Y;
@@ -1534,12 +1318,10 @@ void MOVE_OBJECT()
             MAP_SOURCE[0] = A; // Replace former location
             REDRAW_WINDOW = 1; // See the result
             if (MOVTEMP_U == 255) {
-#ifdef PLATFORM_LIVE_MAP_SUPPORT
                 if (LIVE_MAP_ON == 1) {
                     platform->renderLiveMapTile(MAP, MOVTEMP_X, MOVTEMP_Y);
                     platform->renderLiveMapTile(MAP, MOVTEMP_UX, MOVTEMP_UY);
                 }
-#endif
                 return;
             }
             UNIT_LOC_X[MOVTEMP_U] = MOVTEMP_UX;
@@ -1615,7 +1397,6 @@ uint8_t PRECALC_ROWS[] = { 0,11,22,33,44,55,66 };
 #endif
 
 // This routine is where the MAP is displayed on the screen
-#ifdef OPTIMIZED_MAP_RENDERING
 void INVALIDATE_PREVIOUS_MAP()
 {
     for (int i = 0; i < MAP_WINDOW_SIZE; i++) {
@@ -1638,7 +1419,6 @@ void DRAW_MAP_WINDOW()
             // NOW FIGURE OUT WHERE TO PLACE IT ON SCREEN.
             TILE = MAP_SOURCE[0];
             uint8_t VARIANT = 0;
-#ifdef PLATFORM_IMAGE_BASED_TILES
             switch (TILE) {
             case 204: // WATER
             case 66:  // FLAG
@@ -1660,10 +1440,8 @@ void DRAW_MAP_WINDOW()
             default:
                 break;
             }
-#endif
             uint8_t FG_TILE = MAP_PRECALC[PRECALC_COUNT];
             uint8_t FG_VARIANT = 0;
-#ifdef PLATFORM_SPRITE_SUPPORT
             if (FG_TILE != 0) {
                 DIRECTION = MAP_PRECALC_DIRECTION[PRECALC_COUNT];
                 if (FG_TILE == 96 || (FG_TILE >= 100 && FG_TILE <= 103)) { // PLAYER OR EVILBOT
@@ -1697,7 +1475,6 @@ void DRAW_MAP_WINDOW()
                     }
                 }
             }
-#endif
             if (TILE != PREVIOUS_MAP_BACKGROUND[PRECALC_COUNT] ||
                 VARIANT != PREVIOUS_MAP_BACKGROUND_VARIANT[PRECALC_COUNT] ||
                 FG_TILE != PREVIOUS_MAP_FOREGROUND[PRECALC_COUNT] ||
@@ -1742,86 +1519,17 @@ void DRAW_MAP_WINDOW()
         }
     }
 }
-#else
-// This is a temporary routine, taken from the map editor.
-void DRAW_MAP_WINDOW()
-{
-    MAP_PRE_CALCULATE();
-    REDRAW_WINDOW = 0;
-    for (uint8_t TEMP_Y = 0, PRECALC_COUNT = 0; TEMP_Y != PLATFORM_MAP_WINDOW_TILES_HEIGHT; TEMP_Y++) {
-        for (uint8_t TEMP_X = 0; TEMP_X != PLATFORM_MAP_WINDOW_TILES_WIDTH; TEMP_X++) {
-            // FIRST CALCULATE WHERE THE BYTE IS STORED IN THE MAP
-            MAP_SOURCE = MAP + (((MAP_WINDOW_Y + TEMP_Y) << 7) + TEMP_X + MAP_WINDOW_X);
-            TILE = MAP_SOURCE[0];
-            // NOW FIGURE OUT WHERE TO PLACE IT ON SCREEN.
-#ifdef PLATFORM_SPRITE_SUPPORT
-            if (MAP_PRECALC[PRECALC_COUNT] != 0) {
-                uint8_t FG_TILE = MAP_PRECALC[PRECALC_COUNT];
-                DIRECTION = MAP_PRECALC_DIRECTION[PRECALC_COUNT];
-                uint8_t variant = 0;
-                if (FG_TILE == 96 || (FG_TILE >= 100 && FG_TILE <= 103)) {
-                    if (DIRECTION == 0) {
-                        variant = 8;
-                    } else if (DIRECTION == 2) {
-                        variant = 12;
-                    } else if (DIRECTION == 3) {
-                        variant = 4;
-                    }
-                    if (FG_TILE == 96) {
-                        variant += WALK_FRAME + (SELECTED_WEAPON << 4);
-                    }
-                }
-                platform->renderTiles(TILE, FG_TILE, TEMP_X * 24, TEMP_Y * 24, 0, variant);
-            } else {
-                platform->renderTile(TILE, TEMP_X * 24, TEMP_Y * 24);
-            }
-#else
-#ifdef PLATFORM_TILE_BASED_RENDERING
-            PLOT_TILE(MAP_CHART[TEMP_Y] + TEMP_X + TEMP_X + TEMP_X, TEMP_X, TEMP_Y);
-#else
-            PLOT_TILE(MAP_CHART[TEMP_Y] + TEMP_X + TEMP_X + TEMP_X);
-#endif
-            // now check for sprites in this location
-            if (MAP_PRECALC[PRECALC_COUNT] != 0) {
-                TILE = MAP_PRECALC[PRECALC_COUNT];
-                DIRECTION = MAP_PRECALC_DIRECTION[PRECALC_COUNT];
-#ifdef PLATFORM_TILE_BASED_RENDERING
-                PLOT_TRANSPARENT_TILE(MAP_CHART[TEMP_Y] + TEMP_X + TEMP_X + TEMP_X, TEMP_X, TEMP_Y);
-#else
-                PLOT_TRANSPARENT_TILE(MAP_CHART[TEMP_Y] + TEMP_X + TEMP_X + TEMP_X);
-#endif
-            }
-#endif
-            PRECALC_COUNT++;
-        }
-#ifndef PLATFORM_CURSOR_SUPPORT
-        // CHECK FOR CURSOR
-        if (CURSOR_ON == 1) { // Is cursor even on?
-            if (TEMP_Y == CURSOR_Y) { // is cursor on the same row that were drawing?
-                REVERSE_TILE();
-            }
-        }
-#endif
-    }
-}
-#endif
 
-#ifdef PLATFORM_LIVE_MAP_SUPPORT
 void TOGGLE_LIVE_MAP()
 {
     if (LIVE_MAP_ON != 1) {
         LIVE_MAP_ON = 1;
 
-#ifdef _AMIGA // for binary compatibility with the 1.0 release
-        platform->clearRect(0, 0, PLATFORM_SCREEN_WIDTH - 56, PLATFORM_SCREEN_HEIGHT - 32);
-#endif
         platform->renderLiveMap(MAP);
     } else {
         LIVE_MAP_ON = 0;
 
-#ifdef OPTIMIZED_MAP_RENDERING
         INVALIDATE_PREVIOUS_MAP();
-#endif
     }
     REDRAW_WINDOW = 1;
 }
@@ -1841,31 +1549,13 @@ void DRAW_LIVE_MAP()
 uint8_t LIVE_MAP_ON = 0;
 uint8_t LIVE_MAP_ROBOTS_ON = 0;
 uint8_t LIVE_MAP_PLAYER_BLINK = 0;
-#endif
 
-#ifdef PLATFORM_TILE_BASED_RENDERING
 // This routine plots a 3x3 tile from the tile database anywhere
 // on screen.  But first you must define the tile number in the
 // TILE variable, as well as the starting screen address must
 // be defined in $FB.
 void PLOT_TILE(uint16_t destination, uint16_t x, uint16_t y)
 {
-#ifndef PLATFORM_IMAGE_BASED_TILES
-    // DRAW THE TOP 3 CHARACTERS
-    SCREEN_MEMORY[destination + 0] = TILE_DATA_TL[TILE];
-    SCREEN_MEMORY[destination + 1] = TILE_DATA_TM[TILE];
-    SCREEN_MEMORY[destination + 2] = TILE_DATA_TR[TILE];
-    // MOVE DOWN TO NEXT LINE
-    // DRAW THE MIDDLE 3 CHARACTERS
-    SCREEN_MEMORY[destination + 40] = TILE_DATA_ML[TILE];
-    SCREEN_MEMORY[destination + 41] = TILE_DATA_MM[TILE];
-    SCREEN_MEMORY[destination + 42] = TILE_DATA_MR[TILE];
-    // MOVE DOWN TO NEXT LINE
-    // DRAW THE BOTTOM 3 CHARACTERS
-    SCREEN_MEMORY[destination + 80] = TILE_DATA_BL[TILE];
-    SCREEN_MEMORY[destination + 81] = TILE_DATA_BM[TILE];
-    SCREEN_MEMORY[destination + 82] = TILE_DATA_BR[TILE];
-#endif
     platform->renderTile(TILE, x * 24, y * 24);
 }
 
@@ -1877,40 +1567,6 @@ void PLOT_TILE(uint16_t destination, uint16_t x, uint16_t y)
 // is not drawn.
 void PLOT_TRANSPARENT_TILE(uint16_t destination, uint16_t x, uint16_t y)
 {
-#ifndef PLATFORM_IMAGE_BASED_TILES
-    // DRAW THE TOP 3 CHARACTERS
-    if (TILE_DATA_TL[TILE] != 0x3A) {
-        SCREEN_MEMORY[destination + 0] = TILE_DATA_TL[TILE];
-    }
-    if (TILE_DATA_TM[TILE] != 0x3A) {
-        SCREEN_MEMORY[destination + 1] = TILE_DATA_TM[TILE];
-    }
-    if (TILE_DATA_TR[TILE] != 0x3A) {
-        SCREEN_MEMORY[destination + 2] = TILE_DATA_TR[TILE];
-    }
-    // MOVE DOWN TO NEXT LINE
-    // DRAW THE MIDDLE 3 CHARACTERS
-    if (TILE_DATA_ML[TILE] != 0x3A) {
-        SCREEN_MEMORY[destination + 40] = TILE_DATA_ML[TILE];
-    }
-    if (TILE_DATA_MM[TILE] != 0x3A) {
-        SCREEN_MEMORY[destination + 41] = TILE_DATA_MM[TILE];
-    }
-    if (TILE_DATA_MR[TILE] != 0x3A) {
-        SCREEN_MEMORY[destination + 42] = TILE_DATA_MR[TILE];
-    }
-    // MOVE DOWN TO NEXT LINE
-    // DRAW THE BOTTOM 3 CHARACTERS
-    if (TILE_DATA_BL[TILE] != 0x3A) {
-        SCREEN_MEMORY[destination + 80] = TILE_DATA_BL[TILE];
-    }
-    if (TILE_DATA_BM[TILE] != 0x3A) {
-        SCREEN_MEMORY[destination + 81] = TILE_DATA_BM[TILE];
-    }
-    if (TILE_DATA_BR[TILE] != 0x3A) {
-        SCREEN_MEMORY[destination + 82] = TILE_DATA_BR[TILE];
-    }
-#endif
     uint8_t variant = 0;
     if (TILE == 96 || (TILE >= 100 && TILE <= 103)) {
         if (DIRECTION == 0) {
@@ -1926,77 +1582,6 @@ void PLOT_TRANSPARENT_TILE(uint16_t destination, uint16_t x, uint16_t y)
     }
     platform->renderTile(TILE, x * 24, y * 24, variant, true);
 }
-#else
-void PLOT_TILE(uint16_t destination)
-{
-    // DRAW THE TOP 3 CHARACTERS
-    writeToScreenMemory(destination + 0, TILE_DATA_TL[TILE]);
-    writeToScreenMemory(destination + 1, TILE_DATA_TM[TILE]);
-    writeToScreenMemory(destination + 2, TILE_DATA_TR[TILE]);
-    // MOVE DOWN TO NEXT LINE
-    // DRAW THE MIDDLE 3 CHARACTERS
-    writeToScreenMemory(destination + 40, TILE_DATA_ML[TILE]);
-    writeToScreenMemory(destination + 41, TILE_DATA_MM[TILE]);
-    writeToScreenMemory(destination + 42, TILE_DATA_MR[TILE]);
-    // MOVE DOWN TO NEXT LINE
-    // DRAW THE BOTTOM 3 CHARACTERS
-    writeToScreenMemory(destination + 80, TILE_DATA_BL[TILE]);
-    writeToScreenMemory(destination + 81, TILE_DATA_BM[TILE]);
-    writeToScreenMemory(destination + 82, TILE_DATA_BR[TILE]);
-}
-
-void PLOT_TRANSPARENT_TILE(uint16_t destination)
-{
-    // DRAW THE TOP 3 CHARACTERS
-    if (TILE_DATA_TL[TILE] != 0x3A) {
-        writeToScreenMemory(destination + 0, TILE_DATA_TL[TILE]);
-    }
-    if (TILE_DATA_TM[TILE] != 0x3A) {
-        writeToScreenMemory(destination + 1, TILE_DATA_TM[TILE]);
-    }
-    if (TILE_DATA_TR[TILE] != 0x3A) {
-        writeToScreenMemory(destination + 2, TILE_DATA_TR[TILE]);
-    }
-    // MOVE DOWN TO NEXT LINE
-    // DRAW THE MIDDLE 3 CHARACTERS
-    if (TILE_DATA_ML[TILE] != 0x3A) {
-        writeToScreenMemory(destination + 40, TILE_DATA_ML[TILE]);
-    }
-    if (TILE_DATA_MM[TILE] != 0x3A) {
-        writeToScreenMemory(destination + 41, TILE_DATA_MM[TILE]);
-    }
-    if (TILE_DATA_MR[TILE] != 0x3A) {
-        writeToScreenMemory(destination + 42, TILE_DATA_MR[TILE]);
-    }
-    // MOVE DOWN TO NEXT LINE
-    // DRAW THE BOTTOM 3 CHARACTERS
-    if (TILE_DATA_BL[TILE] != 0x3A) {
-        writeToScreenMemory(destination + 80, TILE_DATA_BL[TILE]);
-    }
-    if (TILE_DATA_BM[TILE] != 0x3A) {
-        writeToScreenMemory(destination + 81, TILE_DATA_BM[TILE]);
-    }
-    if (TILE_DATA_BR[TILE] != 0x3A) {
-        writeToScreenMemory(destination + 82, TILE_DATA_BR[TILE]);
-    }
-}
-#endif
-
-#ifndef PLATFORM_CURSOR_SUPPORT
-void REVERSE_TILE()
-{
-    uint16_t destination = MAP_CHART[CURSOR_Y] + CURSOR_X + CURSOR_X + CURSOR_X;
-    writeToScreenMemory(destination + 0, SCREEN_MEMORY[destination + 0] ^= 0x80);
-    writeToScreenMemory(destination + 1, SCREEN_MEMORY[destination + 1] ^= 0x80);
-    writeToScreenMemory(destination + 2, SCREEN_MEMORY[destination + 2] ^= 0x80);
-    writeToScreenMemory(destination + 40, SCREEN_MEMORY[destination + 40] ^= 0x80);
-    writeToScreenMemory(destination + 41, SCREEN_MEMORY[destination + 41] ^= 0x80);
-    writeToScreenMemory(destination + 42, SCREEN_MEMORY[destination + 42] ^= 0x80);
-    writeToScreenMemory(destination + 80, SCREEN_MEMORY[destination + 80] ^= 0x80);
-    writeToScreenMemory(destination + 81, SCREEN_MEMORY[destination + 81] ^= 0x80);
-    writeToScreenMemory(destination + 82, SCREEN_MEMORY[destination + 82] ^= 0x80);
-}
-#endif
 
 // This routine checks to see if UNIT is occupying any space
 // that is currently visible in the window.  If so, the
@@ -2025,20 +1610,7 @@ void TILE_LOAD_ROUTINE()
     uint8_t* tileset = platform->loadTileset(TILENAME);
     DESTRUCT_PATH = tileset + 2 + 0 * 256;
     TILE_ATTRIB = tileset + 2 + 1 * 256;
-#ifdef PLATFORM_SPRITE_SUPPORT
     platform->generateTiles(0, TILE_ATTRIB);
-#else
-    TILE_DATA_TL = tileset + 2 + 2 * 256;
-    TILE_DATA_TM = tileset + 2 + 3 * 256;
-    TILE_DATA_TR = tileset + 2 + 4 * 256;
-    TILE_DATA_ML = tileset + 2 + 5 * 256;
-    TILE_DATA_MM = tileset + 2 + 6 * 256;
-    TILE_DATA_MR = tileset + 2 + 7 * 256;
-    TILE_DATA_BL = tileset + 2 + 8 * 256;
-    TILE_DATA_BM = tileset + 2 + 9 * 256;
-    TILE_DATA_BR = tileset + 2 + 10 * 256;
-    platform->generateTiles(TILE_DATA_TL, TILE_ATTRIB);
-#endif
 }
 
 // The following routine loads the map from disk
@@ -2049,7 +1621,6 @@ void MAP_LOAD_ROUTINE()
 
 void DISPLAY_GAME_SCREEN()
 {
-#ifdef PLATFORM_IMAGE_SUPPORT
     platform->displayImage(Platform::ImageGame);
 
     writeToScreenMemory(25 * SCREEN_WIDTH_IN_CHARACTERS - 6, 0x71, 15);
@@ -2058,9 +1629,6 @@ void DISPLAY_GAME_SCREEN()
     writeToScreenMemory(25 * SCREEN_WIDTH_IN_CHARACTERS - 3, 0x71, 12);
     writeToScreenMemory(25 * SCREEN_WIDTH_IN_CHARACTERS - 2, 0x71, 9);
     writeToScreenMemory(25 * SCREEN_WIDTH_IN_CHARACTERS - 1, 0x71, 9);
-#else
-    DECOMPRESS_SCREEN(SCR_TEXT);
-#endif
 }
 
 char INTRO_OPTIONS[] = "start game"
@@ -2070,27 +1638,19 @@ char INTRO_OPTIONS[] = "start game"
 
 void DISPLAY_INTRO_SCREEN()
 {
-#ifdef PLATFORM_IMAGE_SUPPORT
     uint8_t* row = SCREEN_MEMORY + MENU_CHART[0];
-    for (int Y = 0, i = 0; Y < PLATFORM_INTRO_OPTIONS; Y++, row += SCREEN_WIDTH_IN_CHARACTERS) {
+    for (int Y = 0, i = 0; Y < 3; Y++, row += SCREEN_WIDTH_IN_CHARACTERS) {
         for (int X = 0; X < 10; X++, i++) {
             row[X] = INTRO_OPTIONS[i];
         }
     }
     platform->displayImage(Platform::ImageIntro);
-#else
-    DECOMPRESS_SCREEN(INTRO_TEXT);
-#endif
 }
 
 void DISPLAY_ENDGAME_SCREEN()
 {
     int X;
-#ifdef PLATFORM_IMAGE_SUPPORT
     platform->displayImage(Platform::ImageGameOver);
-#else
-    DECOMPRESS_SCREEN(SCR_ENDGAME);
-#endif
     // display map name
     char* name = CALC_MAP_NAME();
     for (int Y = 0; Y != 16; Y++) {
@@ -2176,10 +1736,8 @@ void DISPLAY_PLAYER_HEALTH()
         writeToScreenMemory(24 * SCREEN_WIDTH_IN_CHARACTERS - 6 + Y++, 0x20); // SPACE
     }
 
-#ifdef PLATFORM_IMAGE_SUPPORT
     int health = 5 - MIN(TEMP_A, 5);
     platform->renderHealth(health, PLATFORM_SCREEN_WIDTH - 48, 131 + (health >> 1));
-#endif
 }
 
 void CYCLE_ITEM()
@@ -2271,92 +1829,35 @@ void PRESELECT_ITEM()
 
 void DISPLAY_TIMEBOMB()
 {
-#ifdef PLATFORM_IMAGE_SUPPORT
     platform->renderItem(5, PLATFORM_SCREEN_WIDTH - 48, 54);
     DECNUM = INV_BOMBS;
     DECWRITE(11 * SCREEN_WIDTH_IN_CHARACTERS - 3, 1);
-#else
-    for (int Y = 0; Y != 6; Y++) {
-        writeToScreenMemory(9 * SCREEN_WIDTH_IN_CHARACTERS - 6 + Y, TBOMB1A[Y]);
-        writeToScreenMemory(10 * SCREEN_WIDTH_IN_CHARACTERS - 6 + Y, TBOMB1B[Y]);
-        writeToScreenMemory(11 * SCREEN_WIDTH_IN_CHARACTERS - 6 + Y, TBOMB1C[Y]);
-        writeToScreenMemory(12 * SCREEN_WIDTH_IN_CHARACTERS - 6 + Y, TBOMB1D[Y]);
-    }
-    DECNUM = INV_BOMBS;
-    DECWRITE(13 * SCREEN_WIDTH_IN_CHARACTERS - 3);
-#endif
 }
 
 void DISPLAY_EMP()
 {
-#ifdef PLATFORM_IMAGE_SUPPORT
     platform->renderItem(3, PLATFORM_SCREEN_WIDTH - 48, 54);
     DECNUM = INV_EMP;
     DECWRITE(11 * SCREEN_WIDTH_IN_CHARACTERS - 3, 1);
-#else
-    for (int Y = 0; Y != 6; Y++) {
-        writeToScreenMemory(9 * SCREEN_WIDTH_IN_CHARACTERS - 6 + Y, EMP1A[Y]);
-        writeToScreenMemory(10 * SCREEN_WIDTH_IN_CHARACTERS - 6 + Y, EMP1B[Y]);
-        writeToScreenMemory(11 * SCREEN_WIDTH_IN_CHARACTERS - 6 + Y, EMP1C[Y]);
-        writeToScreenMemory(12 * SCREEN_WIDTH_IN_CHARACTERS - 6 + Y, EMP1D[Y]);
-    }
-    DECNUM = INV_EMP;
-    DECWRITE(13 * SCREEN_WIDTH_IN_CHARACTERS - 3);
-#endif
 }
 
 void DISPLAY_MEDKIT()
 {
-#ifdef PLATFORM_IMAGE_SUPPORT
     platform->renderItem(2, PLATFORM_SCREEN_WIDTH - 48, 54);
     DECNUM = INV_MEDKIT;
     DECWRITE(11 * SCREEN_WIDTH_IN_CHARACTERS - 3, 1);
-#else
-    for (int Y = 0; Y != 6; Y++) {
-        writeToScreenMemory(9 * SCREEN_WIDTH_IN_CHARACTERS - 6 + Y, MED1A[Y]);
-        writeToScreenMemory(10 * SCREEN_WIDTH_IN_CHARACTERS - 6 + Y, MED1B[Y]);
-        writeToScreenMemory(11 * SCREEN_WIDTH_IN_CHARACTERS - 6 + Y, MED1C[Y]);
-        writeToScreenMemory(12 * SCREEN_WIDTH_IN_CHARACTERS - 6 + Y, MED1D[Y]);
-    }
-    DECNUM = INV_MEDKIT;
-    DECWRITE(13 * SCREEN_WIDTH_IN_CHARACTERS - 3);
-#endif
 }
 
 void DISPLAY_MAGNET()
 {
-#ifdef PLATFORM_IMAGE_SUPPORT
     platform->renderItem(4, PLATFORM_SCREEN_WIDTH - 48, 54);
     DECNUM = INV_MAGNET;
     DECWRITE(11 * SCREEN_WIDTH_IN_CHARACTERS - 3, 1);
-#else
-    for (int Y = 0; Y != 6; Y++) {
-        writeToScreenMemory(9 * SCREEN_WIDTH_IN_CHARACTERS - 6 + Y, MAG1A[Y]);
-        writeToScreenMemory(10 * SCREEN_WIDTH_IN_CHARACTERS - 6 + Y, MAG1B[Y]);
-        writeToScreenMemory(11 * SCREEN_WIDTH_IN_CHARACTERS - 6 + Y, MAG1C[Y]);
-        writeToScreenMemory(12 * SCREEN_WIDTH_IN_CHARACTERS - 6 + Y, MAG1D[Y]);
-    }
-    DECNUM = INV_MAGNET;
-    DECWRITE(13 * SCREEN_WIDTH_IN_CHARACTERS - 3);
-#endif
 }
 
 void DISPLAY_BLANK_ITEM()
 {
-#ifdef PLATFORM_IMAGE_SUPPORT
     platform->clearRect(PLATFORM_SCREEN_WIDTH - 48, 48, 48, 40);
-#else
-    platform->clearRect(PLATFORM_SCREEN_WIDTH - 48, 56, 48, 32);
-#endif
-/*
-    for (int Y = 0; Y != 6; Y++) {
-        writeToScreenMemory(9 * SCREEN_WIDTH_IN_CHARACTERS - 6 + Y, 32);
-        writeToScreenMemory(10 * SCREEN_WIDTH_IN_CHARACTERS - 6 + Y, 32);
-        writeToScreenMemory(11 * SCREEN_WIDTH_IN_CHARACTERS - 6 + Y, 32);
-        writeToScreenMemory(12 * SCREEN_WIDTH_IN_CHARACTERS - 6 + Y, 32);
-        writeToScreenMemory(13 * SCREEN_WIDTH_IN_CHARACTERS - 6 + Y, 32);
-    }
-*/
 }
 
 void CYCLE_WEAPON()
@@ -2371,9 +1872,7 @@ void CYCLE_WEAPON()
     if (SELECTED_WEAPON != 2) {
         SELECTED_WEAPON = 0;
     }
-#ifdef PLATFORM_IMAGE_SUPPORT
     REDRAW_WINDOW = 1;
-#endif
     DISPLAY_WEAPON();
 }
 
@@ -2427,61 +1926,25 @@ void PRESELECT_WEAPON()
 
 void DISPLAY_PLASMA_GUN()
 {
-#ifdef PLATFORM_IMAGE_SUPPORT
     platform->renderItem(1, PLATFORM_SCREEN_WIDTH - 48, 13);
     DECNUM = AMMO_PLASMA;
     DECWRITE(5 * SCREEN_WIDTH_IN_CHARACTERS - 3, 1);
-#else
-    for (int Y = 0; Y != 6; Y++) {
-        writeToScreenMemory(2 * SCREEN_WIDTH_IN_CHARACTERS - 6 + Y, WEAPON1A[Y]);
-        writeToScreenMemory(3 * SCREEN_WIDTH_IN_CHARACTERS - 6 + Y, WEAPON1B[Y]);
-        writeToScreenMemory(4 * SCREEN_WIDTH_IN_CHARACTERS - 6 + Y, WEAPON1C[Y]);
-        writeToScreenMemory(5 * SCREEN_WIDTH_IN_CHARACTERS - 6 + Y, WEAPON1D[Y]);
-    }
-    DECNUM = AMMO_PLASMA;
-    DECWRITE(6 * SCREEN_WIDTH_IN_CHARACTERS - 3);
-#endif
 }
 
 void DISPLAY_PISTOL()
 {
-#ifdef PLATFORM_IMAGE_SUPPORT
     platform->renderItem(0, PLATFORM_SCREEN_WIDTH - 48, 13);
     DECNUM = AMMO_PISTOL;
     DECWRITE(5 * SCREEN_WIDTH_IN_CHARACTERS - 3, 1);
-#else
-    for (int Y = 0; Y != 6; Y++) {
-        writeToScreenMemory(2 * SCREEN_WIDTH_IN_CHARACTERS - 6 + Y, PISTOL1A[Y]);
-        writeToScreenMemory(3 * SCREEN_WIDTH_IN_CHARACTERS - 6 + Y, PISTOL1B[Y]);
-        writeToScreenMemory(4 * SCREEN_WIDTH_IN_CHARACTERS - 6 + Y, PISTOL1C[Y]);
-        writeToScreenMemory(5 * SCREEN_WIDTH_IN_CHARACTERS - 6 + Y, PISTOL1D[Y]);
-    }
-    DECNUM = AMMO_PISTOL;
-    DECWRITE(6 * SCREEN_WIDTH_IN_CHARACTERS - 3);
-#endif
 }
 
 void DISPLAY_BLANK_WEAPON()
 {
-#ifdef PLATFORM_IMAGE_SUPPORT
     platform->clearRect(PLATFORM_SCREEN_WIDTH - 48, 8, 48, 32);
-#else
-    platform->clearRect(PLATFORM_SCREEN_WIDTH - 48, 16, 48, 32);
-#endif
-    /*
-    for (int Y = 0; Y != 6; Y++) {
-        writeToScreenMemory(2 * SCREEN_WIDTH_IN_CHARACTERS - 6 + Y, 32);
-        writeToScreenMemory(3 * SCREEN_WIDTH_IN_CHARACTERS - 6 + Y, 32);
-        writeToScreenMemory(4 * SCREEN_WIDTH_IN_CHARACTERS - 6 + Y, 32);
-        writeToScreenMemory(5 * SCREEN_WIDTH_IN_CHARACTERS - 6 + Y, 32);
-        writeToScreenMemory(6 * SCREEN_WIDTH_IN_CHARACTERS - 6 + Y, 32);
-    }
-    */
 }
 
 void DISPLAY_KEYS()
 {
-#ifdef PLATFORM_IMAGE_SUPPORT
     platform->clearRect(PLATFORM_SCREEN_WIDTH - 48, 106, 48, 14); // ERASE ALL 3 SPOTS
     if (KEYS & 0x01) { // %00000001 Spade key
         platform->renderKey(0, PLATFORM_SCREEN_WIDTH - 48, 106);
@@ -2492,68 +1955,24 @@ void DISPLAY_KEYS()
     if (KEYS & 0x04) { // %00000100 star key
         platform->renderKey(2, PLATFORM_SCREEN_WIDTH - 16, 106);
     }
-#else
-    platform->clearRect(PLATFORM_SCREEN_WIDTH - 48, 120, 48, 16); // ERASE ALL 3 SPOTS
-    /*
-    writeToScreenMemory(16 * SCREEN_WIDTH_IN_CHARACTERS - 6, 32); // ERASE ALL 3 SPOTS
-    writeToScreenMemory(16 * SCREEN_WIDTH_IN_CHARACTERS - 5, 32);
-    writeToScreenMemory(16 * SCREEN_WIDTH_IN_CHARACTERS - 4, 32);
-    writeToScreenMemory(16 * SCREEN_WIDTH_IN_CHARACTERS - 3, 32);
-    writeToScreenMemory(16 * SCREEN_WIDTH_IN_CHARACTERS - 2, 32);
-    writeToScreenMemory(16 * SCREEN_WIDTH_IN_CHARACTERS - 1, 32);
-    writeToScreenMemory(17 * SCREEN_WIDTH_IN_CHARACTERS - 6, 32);
-    writeToScreenMemory(17 * SCREEN_WIDTH_IN_CHARACTERS - 5, 32);
-    writeToScreenMemory(17 * SCREEN_WIDTH_IN_CHARACTERS - 4, 32);
-    writeToScreenMemory(17 * SCREEN_WIDTH_IN_CHARACTERS - 3, 32);
-    writeToScreenMemory(17 * SCREEN_WIDTH_IN_CHARACTERS - 2, 32);
-    writeToScreenMemory(17 * SCREEN_WIDTH_IN_CHARACTERS - 1, 32);
-    */
-    if (KEYS & 0x01) { // %00000001 Spade key
-        writeToScreenMemory(16 * SCREEN_WIDTH_IN_CHARACTERS - 6, 0x63);
-        writeToScreenMemory(16 * SCREEN_WIDTH_IN_CHARACTERS - 5, 0x4D);
-        writeToScreenMemory(17 * SCREEN_WIDTH_IN_CHARACTERS - 6, 0x41);
-        writeToScreenMemory(17 * SCREEN_WIDTH_IN_CHARACTERS - 5, 0x67);
-    }
-    if (KEYS & 0x02) { // %00000010 heart key
-        writeToScreenMemory(16 * SCREEN_WIDTH_IN_CHARACTERS - 4, 0x63);
-        writeToScreenMemory(16 * SCREEN_WIDTH_IN_CHARACTERS - 3, 0x4D);
-        writeToScreenMemory(17 * SCREEN_WIDTH_IN_CHARACTERS - 4, 0x53);
-        writeToScreenMemory(17 * SCREEN_WIDTH_IN_CHARACTERS - 3, 0x67);
-    }
-    if (KEYS & 0x04) { // %00000100 star key
-        writeToScreenMemory(16 * SCREEN_WIDTH_IN_CHARACTERS - 2, 0x63);
-        writeToScreenMemory(16 * SCREEN_WIDTH_IN_CHARACTERS - 1, 0x4D);
-        writeToScreenMemory(17 * SCREEN_WIDTH_IN_CHARACTERS - 2, 0x2A);
-        writeToScreenMemory(17 * SCREEN_WIDTH_IN_CHARACTERS - 1, 0x67);
-    }
-#endif
 }
 
 void GAME_OVER()
 {
-#ifndef _AMIGA // for binary compatibility with the 1.0 release
     platform->renderFrame();
-#endif
     // stop game clock
     CLOCK_ACTIVE = 0;
     // disable music
-#ifdef PLATFORM_MODULE_BASED_AUDIO
     platform->pauseModule();
-#else
-    MUSIC_ON = 0;
-    platform->stopNote(); // turn off sound
-#endif
     // Did player die or win?
     if (UNIT_TYPE[0] == 0) {
         UNIT_TILE[0] = 111; // // dead player tile
         KEYTIMER = 100;
     }
     while (KEYTIMER != 0) {
-#ifndef _AMIGA // for binary compatibility with the 1.0 release
         if (BGTIMER1 != 1) {
             platform->renderFrame(true);
         }
-#endif
         PET_SCREEN_SHAKE();
         BACKGROUND_TASKS();
     }
@@ -2562,21 +1981,12 @@ void GAME_OVER()
         writeToScreenMemory(((SCREEN_HEIGHT_IN_CHARACTERS - 3 - 3) / 2 + 1) * SCREEN_WIDTH_IN_CHARACTERS + (SCREEN_WIDTH_IN_CHARACTERS - 7 - 11) / 2 + X, GAMEOVER2[X]);
         writeToScreenMemory(((SCREEN_HEIGHT_IN_CHARACTERS - 3 - 3) / 2 + 2) * SCREEN_WIDTH_IN_CHARACTERS + (SCREEN_WIDTH_IN_CHARACTERS - 7 - 11) / 2 + X, GAMEOVER3[X]);
     }
-#ifndef _AMIGA // for binary compatibility with the 1.0 release
     platform->renderFrame();
-#endif
-#ifdef PLATFORM_MODULE_BASED_AUDIO
     platform->clearKeyBuffer(); // CLEAR KEYBOARD BUFFER
     platform->stopModule();
     if (MUSIC_ON == 1) {
         platform->loadModule(UNIT_TYPE[0] != 0 ? Platform::ModuleWin : Platform::ModuleLose);
     }
-#else
-    KEYTIMER = 100;
-    while (KEYTIMER != 0) {
-        platform->clearKeyBuffer(); // CLEAR KEYBOARD BUFFER
-    }
-#endif
     while (platform->readKeyboard() == 0xff && platform->readJoystick(CONTROL == 2 ? true : false) == 0 && !platform->quit) {
         platform->renderFrame(true);
     }
@@ -2586,11 +1996,7 @@ void GAME_OVER()
 void GOM4()
 {
     platform->clearKeyBuffer(); // CLEAR KEYBOARD BUFFER
-#ifdef PLATFORM_MODULE_BASED_AUDIO
     platform->stopModule();
-#else
-    MUSIC_ON = 0;
-#endif
     platform->startFadeScreen(0x000, 15);
     platform->fadeScreen(0, false);
     DISPLAY_ENDGAME_SCREEN();
@@ -2601,9 +2007,7 @@ void GOM4()
         platform->renderFrame(true);
     }
     platform->clearKeyBuffer(); // CLEAR KEYBOARD BUFFER
-#ifdef PLATFORM_MODULE_BASED_AUDIO
     platform->stopModule();
-#endif
 }
 
 uint8_t GAMEOVER1[] = { 0x70, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x6e };
@@ -2618,25 +2022,17 @@ void DISPLAY_WIN_LOSE()
         for (int X = 0; X != 8; X++) {
             writeToScreenMemory(3 * SCREEN_WIDTH_IN_CHARACTERS + 16 + X, WIN_MSG[X], 4, 1);
         }
-#ifdef PLATFORM_MODULE_BASED_AUDIO
         if (MUSIC_ON == 1) {
             platform->playModule(Platform::ModuleWin);
         }
-#else
-        PLAY_SOUND(18); // win music
-#endif
     } else {
         // LOSE MESSAGE
         for (int X = 0; X != 9; X++) {
             writeToScreenMemory(3 * SCREEN_WIDTH_IN_CHARACTERS + 16 + X, LOS_MSG[X], 4, 1);
         }
-#ifdef PLATFORM_MODULE_BASED_AUDIO
         if (MUSIC_ON == 1) {
             platform->playModule(Platform::ModuleLose);
         }
-#else
-        PLAY_SOUND(19); // LOSE music
-#endif
     }
 }
 
@@ -2728,7 +2124,7 @@ void INTRO_SCREEN()
         uint16_t B = platform->readJoystick(false);
         if (A != 0xff || B != 0) {
             if (A == KEY_CONFIG[KEY_CURSOR_DOWN] || A == KEY_CONFIG[KEY_MOVE_DOWN] || (B & Platform::JoystickDown)) { // CURSOR DOWN
-                if (MENUY != (PLATFORM_INTRO_OPTIONS - 1)) {
+                if (MENUY != (3 - 1)) {
                     REVERSE_MENU_OPTION(false);
                     MENUY++;
                     REVERSE_MENU_OPTION(true);
@@ -2745,7 +2141,6 @@ void INTRO_SCREEN()
                        A == KEY_CONFIG[KEY_RETURN] || (B & Platform::JoystickRed)) { // RETURN
                 done = EXEC_COMMAND();
             }
-#ifdef PLATFORM_MODULE_BASED_AUDIO
              else if (A == KEY_CONFIG[KEY_MUSIC]) { // SHIFT-M
                 if (MUSIC_ON == 1) {
                     MUSIC_ON = 0;
@@ -2754,7 +2149,6 @@ void INTRO_SCREEN()
                 }
                 START_INTRO_MUSIC();
             }
-#endif
         }
         platform->renderFrame(true);
     }
@@ -2762,25 +2156,14 @@ void INTRO_SCREEN()
 
 void START_INTRO_MUSIC()
 {
-#ifdef PLATFORM_MODULE_BASED_AUDIO
     platform->playModule(MUSIC_ON == 1 ? Platform::ModuleIntro : Platform::ModuleSoundFX);
-#else
-    DATA_LINE = 0;
-    SOUND_EFFECT = 0xFF;
-    CUR_PATTERN = INTRO_MUSIC;
-    MUSIC_ON = 1;
-#endif
 }
 
 bool EXEC_COMMAND()
 {
     if (MENUY == 0) { // START GAME
         SET_CONTROLS();
-#ifdef PLATFORM_MODULE_BASED_AUDIO
         platform->stopModule();
-#else
-        MUSIC_ON = 0;
-#endif
         platform->stopNote(); // turn off sound
         INIT_GAME();
         return true;
@@ -2810,21 +2193,13 @@ void CYCLE_CONTROLS()
     }
     // display control method on screen
     for (int X = 0, Y = CONTROLSTART[CONTROL]; X != 10; X++, Y++) {
-#ifdef PLATFORM_IMAGE_SUPPORT
         writeToScreenMemory(4 * SCREEN_WIDTH_IN_CHARACTERS + 4 + X, CONTROLTEXT[Y], 14, 5);
-#else
-        writeToScreenMemory(5 * SCREEN_WIDTH_IN_CHARACTERS + 4 + X, CONTROLTEXT[Y] | 0x80);
-#endif
     }
 }
 
 char CONTROLTEXT[] = "standard  "
                      "custom    "
-#ifdef GAMEPAD_CD32
-                     "cd32 pad  ";
-#else
                      "snes pad  ";
-#endif
 uint8_t CONTROLSTART[] = { 0, 10, 20 };
 
 void CYCLE_MAP()
@@ -2840,11 +2215,7 @@ void DISPLAY_MAP_NAME()
 {
     char* name = CALC_MAP_NAME();
     for (int Y = 0; Y != 16; Y++) {
-#ifdef PLATFORM_IMAGE_SUPPORT
         writeToScreenMemory(7 * SCREEN_WIDTH_IN_CHARACTERS + 1 + Y, name[Y], 15, 5);
-#else
-        writeToScreenMemory(9 * SCREEN_WIDTH_IN_CHARACTERS + 2 + Y, name[Y]);
-#endif
     }
     // now set the mapname for the filesystem load
     MAPNAME[6] = SELECTED_MAP + 65;
@@ -2858,44 +2229,17 @@ char* CALC_MAP_NAME()
 
 void REVERSE_MENU_OPTION(bool reverse)
 {
-#ifdef PLATFORM_COLOR_SUPPORT
     for (int Y = 0; Y != 10; Y++) {
         writeToScreenMemory(MENU_CHART[MENUY] + Y, SCREEN_MEMORY[MENU_CHART[MENUY] + Y], reverse ? 14 : 15, 5);
     }
-#else
-    for (int Y = 0; Y != 10; Y++) {
-        writeToScreenMemory(MENU_CHART[MENUY] + Y, SCREEN_MEMORY[MENU_CHART[MENUY] + Y] ^ 0x80);
-    }
-#endif
 }
 
 uint8_t MENUY = 0; // CURRENT MENU SELECTION
-#if (PLATFORM_INTRO_OPTIONS == 4)
-#ifdef PLATFORM_IMAGE_SUPPORT
-menu_chart_t MENU_CHART[] = { 1 * SCREEN_WIDTH_IN_CHARACTERS + 4, 2 * SCREEN_WIDTH_IN_CHARACTERS + 4, 3 * SCREEN_WIDTH_IN_CHARACTERS + 4, 4 * SCREEN_WIDTH_IN_CHARACTERS + 4 };
-#else
-menu_chart_t MENU_CHART[] = { 2 * SCREEN_WIDTH_IN_CHARACTERS + 4, 3 * SCREEN_WIDTH_IN_CHARACTERS + 4, 4 * SCREEN_WIDTH_IN_CHARACTERS + 4, 5 * SCREEN_WIDTH_IN_CHARACTERS + 4 };
-#endif
-#else
 menu_chart_t MENU_CHART[] = { 2 * SCREEN_WIDTH_IN_CHARACTERS + 4, 3 * SCREEN_WIDTH_IN_CHARACTERS + 4, 4 * SCREEN_WIDTH_IN_CHARACTERS + 4 };
-#endif
 
 void CHANGE_DIFFICULTY_LEVEL()
 {
-#ifdef PLATFORM_IMAGE_SUPPORT
     platform->renderFace(DIFF_LEVEL, 234, 75);
-#else
-    int Y = FACE_LEVEL[DIFF_LEVEL];
-    // DO CHARACTERS FIRST
-    writeToScreenMemory(5 * SCREEN_WIDTH_IN_CHARACTERS + 21, ROBOT_FACE[Y++]);
-    writeToScreenMemory(5 * SCREEN_WIDTH_IN_CHARACTERS + 22, ROBOT_FACE[Y++]);
-    writeToScreenMemory(5 * SCREEN_WIDTH_IN_CHARACTERS + 23, ROBOT_FACE[Y++]);
-    writeToScreenMemory(5 * SCREEN_WIDTH_IN_CHARACTERS + 25, ROBOT_FACE[Y++]);
-    writeToScreenMemory(5 * SCREEN_WIDTH_IN_CHARACTERS + 26, ROBOT_FACE[Y++]);
-    writeToScreenMemory(5 * SCREEN_WIDTH_IN_CHARACTERS + 27, ROBOT_FACE[Y++]);
-    writeToScreenMemory(6 * SCREEN_WIDTH_IN_CHARACTERS + 23, ROBOT_FACE[Y++]);
-    writeToScreenMemory(6 * SCREEN_WIDTH_IN_CHARACTERS + 25, ROBOT_FACE[Y]);
-#endif
 }
 
 uint8_t DIFF_LEVEL = 1; // default medium
@@ -2954,40 +2298,8 @@ uint16_t MAP_CHART[PLATFORM_MAP_WINDOW_TILES_HEIGHT]
 
 void EMP_FLASH()
 {
-#ifdef PLATFORM_IMAGE_SUPPORT
     BORDER_COLOR = 0x00f;
     BORDER = 10;
-#else
-#ifdef OPTIMIZED_MAP_RENDERING
-    platform->fillRect(0, 0, MAP_WINDOW_WIDTH, MAP_WINDOW_HEIGHT, 15);
-    INVALIDATE_PREVIOUS_MAP();
-#else
-    for (int Y = 0; Y != 33; Y++) {
-        writeToScreenMemory(0 * SCREEN_WIDTH_IN_CHARACTERS + Y, SCREEN_MEMORY[0 * SCREEN_WIDTH_IN_CHARACTERS + Y] ^ 0x80); // screen row 00
-        writeToScreenMemory(1 * SCREEN_WIDTH_IN_CHARACTERS + Y, SCREEN_MEMORY[1 * SCREEN_WIDTH_IN_CHARACTERS + Y] ^ 0x80); // screen row 01
-        writeToScreenMemory(2 * SCREEN_WIDTH_IN_CHARACTERS + Y, SCREEN_MEMORY[2 * SCREEN_WIDTH_IN_CHARACTERS + Y] ^ 0x80); // screen row 02
-        writeToScreenMemory(3 * SCREEN_WIDTH_IN_CHARACTERS + Y, SCREEN_MEMORY[3 * SCREEN_WIDTH_IN_CHARACTERS + Y] ^ 0x80); // screen row 03
-        writeToScreenMemory(4 * SCREEN_WIDTH_IN_CHARACTERS + Y, SCREEN_MEMORY[4 * SCREEN_WIDTH_IN_CHARACTERS + Y] ^ 0x80); // screen row 04
-        writeToScreenMemory(5 * SCREEN_WIDTH_IN_CHARACTERS + Y, SCREEN_MEMORY[5 * SCREEN_WIDTH_IN_CHARACTERS + Y] ^ 0x80); // screen row 05
-        writeToScreenMemory(6 * SCREEN_WIDTH_IN_CHARACTERS + Y, SCREEN_MEMORY[6 * SCREEN_WIDTH_IN_CHARACTERS + Y] ^ 0x80); // screen row 06
-        writeToScreenMemory(7 * SCREEN_WIDTH_IN_CHARACTERS + Y, SCREEN_MEMORY[7 * SCREEN_WIDTH_IN_CHARACTERS + Y] ^ 0x80); // screen row 07
-        writeToScreenMemory(8 * SCREEN_WIDTH_IN_CHARACTERS + Y, SCREEN_MEMORY[8 * SCREEN_WIDTH_IN_CHARACTERS + Y] ^ 0x80); // screen row 08
-        writeToScreenMemory(9 * SCREEN_WIDTH_IN_CHARACTERS + Y, SCREEN_MEMORY[9 * SCREEN_WIDTH_IN_CHARACTERS + Y] ^ 0x80); // screen row 09
-        writeToScreenMemory(10 * SCREEN_WIDTH_IN_CHARACTERS + Y, SCREEN_MEMORY[10 * SCREEN_WIDTH_IN_CHARACTERS + Y] ^ 0x80); // screen row 10
-        writeToScreenMemory(11 * SCREEN_WIDTH_IN_CHARACTERS + Y, SCREEN_MEMORY[11 * SCREEN_WIDTH_IN_CHARACTERS + Y] ^ 0x80); // screen row 11
-        writeToScreenMemory(12 * SCREEN_WIDTH_IN_CHARACTERS + Y, SCREEN_MEMORY[12 * SCREEN_WIDTH_IN_CHARACTERS + Y] ^ 0x80); // screen row 12
-        writeToScreenMemory(13 * SCREEN_WIDTH_IN_CHARACTERS + Y, SCREEN_MEMORY[13 * SCREEN_WIDTH_IN_CHARACTERS + Y] ^ 0x80); // screen row 13
-        writeToScreenMemory(14 * SCREEN_WIDTH_IN_CHARACTERS + Y, SCREEN_MEMORY[14 * SCREEN_WIDTH_IN_CHARACTERS + Y] ^ 0x80); // screen row 14
-        writeToScreenMemory(15 * SCREEN_WIDTH_IN_CHARACTERS + Y, SCREEN_MEMORY[15 * SCREEN_WIDTH_IN_CHARACTERS + Y] ^ 0x80); // screen row 15
-        writeToScreenMemory(16 * SCREEN_WIDTH_IN_CHARACTERS + Y, SCREEN_MEMORY[16 * SCREEN_WIDTH_IN_CHARACTERS + Y] ^ 0x80); // screen row 16
-        writeToScreenMemory(17 * SCREEN_WIDTH_IN_CHARACTERS + Y, SCREEN_MEMORY[17 * SCREEN_WIDTH_IN_CHARACTERS + Y] ^ 0x80); // screen row 17
-        writeToScreenMemory(18 * SCREEN_WIDTH_IN_CHARACTERS + Y, SCREEN_MEMORY[18 * SCREEN_WIDTH_IN_CHARACTERS + Y] ^ 0x80); // screen row 18
-        writeToScreenMemory(19 * SCREEN_WIDTH_IN_CHARACTERS + Y, SCREEN_MEMORY[19 * SCREEN_WIDTH_IN_CHARACTERS + Y] ^ 0x80); // screen row 19
-        writeToScreenMemory(20 * SCREEN_WIDTH_IN_CHARACTERS + Y, SCREEN_MEMORY[20 * SCREEN_WIDTH_IN_CHARACTERS + Y] ^ 0x80); // screen row 20
-    }
-#endif
-    REDRAW_WINDOW = 1;
-#endif
 }
 
 // This routine animates the tile #204 (water) 
@@ -3002,106 +2314,16 @@ void ANIMATE_WATER()
         return;
     }
     WATER_TIMER = 0;
-#ifdef PLATFORM_IMAGE_BASED_TILES
     ANIM_STATE++;
     CINEMA_STATE++;
     if (CINEMA_STATE == 197) {
         CINEMA_STATE = 0;
     }
-#else
-    WATER_TEMP1 = TILE_DATA_BR[204];
-    TILE_DATA_BR[204] = TILE_DATA_MM[204];
-    TILE_DATA_BR[221] = TILE_DATA_MM[204];
-    TILE_DATA_MM[204] = TILE_DATA_TL[204];
-    TILE_DATA_TL[204] = WATER_TEMP1;
-
-    WATER_TEMP1 = TILE_DATA_BL[204];
-    TILE_DATA_BL[204] = TILE_DATA_MR[204];
-    TILE_DATA_BL[221] = TILE_DATA_MR[204];
-    TILE_DATA_MR[204] = TILE_DATA_TM[204];
-    TILE_DATA_TM[204] = WATER_TEMP1;
-    TILE_DATA_TM[221] = WATER_TEMP1;
-
-    WATER_TEMP1 = TILE_DATA_BM[204];
-    TILE_DATA_BM[204] = TILE_DATA_ML[204];
-    TILE_DATA_BM[221] = TILE_DATA_ML[204];
-    TILE_DATA_ML[204] = TILE_DATA_TR[204];
-    TILE_DATA_TR[204] = WATER_TEMP1;
-    TILE_DATA_TR[221] = WATER_TEMP1;
-
-    // now do trash compactor
-    WATER_TEMP1 = TILE_DATA_TR[148];
-    TILE_DATA_TR[148] = TILE_DATA_TM[148];
-    TILE_DATA_TM[148] = TILE_DATA_TL[148];
-    TILE_DATA_TL[148] = WATER_TEMP1;
-
-    WATER_TEMP1 = TILE_DATA_MR[148];
-    TILE_DATA_MR[148] = TILE_DATA_MM[148];
-    TILE_DATA_MM[148] = TILE_DATA_ML[148];
-    TILE_DATA_ML[148] = WATER_TEMP1;
-
-    WATER_TEMP1 = TILE_DATA_BR[148];
-    TILE_DATA_BR[148] = TILE_DATA_BM[148];
-    TILE_DATA_BM[148] = TILE_DATA_BL[148];
-    TILE_DATA_BL[148] = WATER_TEMP1;
-    // Now do HVAC fan
-    if (HVAC_STATE != 0) {
-        TILE_DATA_MM[196] = 0xCD;
-        TILE_DATA_TL[201] = 0xCD;
-        TILE_DATA_ML[197] = 0xCE;
-        TILE_DATA_TM[200] = 0xCE;
-        TILE_DATA_MR[196] = 0xA0;
-        TILE_DATA_BM[196] = 0xA0;
-        TILE_DATA_BL[197] = 0xA0;
-        TILE_DATA_TR[200] = 0xA0;
-        HVAC_STATE = 0;
-    } else {
-        TILE_DATA_MM[196] = 0xA0;
-        TILE_DATA_TL[201] = 0xA0;
-        TILE_DATA_ML[197] = 0xA0;
-        TILE_DATA_TM[200] = 0xA0;
-        TILE_DATA_MR[196] = 0xC2;
-        TILE_DATA_TR[200] = 0xC2;
-        TILE_DATA_BM[196] = 0xC0;
-        TILE_DATA_BL[197] = 0xC0;
-        HVAC_STATE = 1;
-    }
-    // now do cinema screen tiles
-    // FIRST COPY OLD LETTERS TO THE LEFT.
-    TILE_DATA_MM[20] = TILE_DATA_MR[20]; // #2 -> #1
-    TILE_DATA_MR[20] = TILE_DATA_ML[21]; // #3 -> #2
-    TILE_DATA_ML[21] = TILE_DATA_MM[21]; // #4 -> #3
-    TILE_DATA_MM[21] = TILE_DATA_MR[21]; // #5 -> #4
-    TILE_DATA_MR[21] = TILE_DATA_ML[22]; // #6 -> #5
-    // now insert new character.
-    TILE_DATA_ML[22] = CINEMA_MESSAGE[CINEMA_STATE]; // #6
-
-    CINEMA_STATE++;
-    if (CINEMA_STATE == 197) {
-        CINEMA_STATE = 0;
-    }
-    // Now animate light on server computers
-    if (TILE_DATA_MR[143] == 0xD7) {
-        TILE_DATA_MR[143] = 0xD1;
-    } else {
-        TILE_DATA_MR[143] = 0xD7;
-    }
-    uint8_t tiles[] = { 204, 221, 148, 196, 197, 200, 201, 20, 21, 22, 143 };
-    platform->updateTiles(TILE_DATA_TL, tiles, 11);
-#ifdef OPTIMIZED_MAP_RENDERING
-    INVALIDATE_PREVIOUS_MAP();
-#endif
-#endif
     REDRAW_WINDOW = 1;
 }
 
 uint8_t WATER_TIMER = 0;
-#ifdef PLATFORM_IMAGE_BASED_TILES
 uint8_t ANIM_STATE = 0;
-#else
-uint8_t WATER_TEMP1 = 0;
-uint8_t HVAC_STATE = 0;
-#endif
 uint8_t CINEMA_STATE = 0;
 
 // This is the routine that allows a person to select
@@ -3110,13 +2332,9 @@ uint8_t CINEMA_STATE = 0;
 // to the screen directly.
 void ELEVATOR_SELECT()
 {
-#ifdef PLATFORM_LIVE_MAP_SUPPORT
     if (LIVE_MAP_ON == 0) {
-#endif
         DRAW_MAP_WINDOW();
-#ifdef PLATFORM_LIVE_MAP_SUPPORT
     }
-#endif
     ELEVATOR_MAX_FLOOR = UNIT_D[UNIT]; // get max levels
     // Now draw available levels on screen
     for (int Y = 0, A = 0x31; Y != ELEVATOR_MAX_FLOOR; A++, Y++) {
@@ -3133,7 +2351,6 @@ void ELEVATOR_SELECT()
         // SNES INPUT
         uint16_t B = platform->readJoystick(CONTROL == 2 ? true : false);
         if (A != 0xff || B != 0) {
-#ifdef PLATFORM_LIVE_MAP_SUPPORT
             if (A == KEY_CONFIG[KEY_LIVE_MAP] || (CONTROL == 2 && (B & Platform::JoystickPlay) && (B & Platform::JoystickLeft))) {
                 TOGGLE_LIVE_MAP();
                 if (LIVE_MAP_ON == 0) {
@@ -3144,7 +2361,6 @@ void ELEVATOR_SELECT()
                 TOGGLE_LIVE_MAP_ROBOTS();
                 CLEAR_KEY_BUFFER();
             } else
-#endif
             if (A == KEY_CONFIG[KEY_CURSOR_LEFT] || A == KEY_CONFIG[KEY_MOVE_LEFT] || (B & Platform::JoystickLeft)) { // CURSOR LEFT
                 ELEVATOR_DEC();
             } else if (A == KEY_CONFIG[KEY_CURSOR_RIGHT] || A == KEY_CONFIG[KEY_MOVE_RIGHT] || (B & Platform::JoystickRight)) { // CURSOR RIGHT
@@ -3157,11 +2373,9 @@ void ELEVATOR_SELECT()
                 return;
             }
         }
-#ifdef PLATFORM_LIVE_MAP_SUPPORT
         if (LIVE_MAP_ON == 1) {
             DRAW_LIVE_MAP();
         }
-#endif
         platform->renderFrame(true);
     }
 }
@@ -3212,13 +2426,9 @@ void ELEVATOR_FIND_XY()
                 UNIT_LOC_Y[0] = UNIT_LOC_Y[X] - 1; // player location = new elevator location
                 MAP_WINDOW_Y = MIN(MAX(UNIT_LOC_Y[X] - PLATFORM_MAP_WINDOW_TILES_HEIGHT / 2 - 1, 0), 64 - PLATFORM_MAP_WINDOW_TILES_HEIGHT);
 #endif
-#ifdef PLATFORM_LIVE_MAP_SUPPORT
                 if (LIVE_MAP_ON == 0) {
-#endif
                     DRAW_MAP_WINDOW();
-#ifdef PLATFORM_LIVE_MAP_SUPPORT
                 }
-#endif
                 PLAY_SOUND(17); // elevator sound SOUND PLAY
                 break;
             }
@@ -3245,11 +2455,7 @@ void SET_CUSTOM_KEYS()
         return;
     }
     platform->fadeScreen(0, false);
-#ifdef PLATFORM_IMAGE_SUPPORT
     DECOMPRESS_SCREEN(SCR_CUSTOM_KEYS, 15);
-#else
-    DECOMPRESS_SCREEN(SCR_CUSTOM_KEYS);
-#endif
     platform->renderFrame();
     platform->fadeScreen(15, false);
     uint16_t destination = 8 * SCREEN_WIDTH_IN_CHARACTERS + 17;
@@ -3258,11 +2464,7 @@ void SET_CUSTOM_KEYS()
         if (A != 0xff) {
             KEY_CONFIG[TEMP_A] = A;
             DECNUM = A;
-#ifdef PLATFORM_IMAGE_SUPPORT
             DECWRITE(destination, 15);
-#else
-            DECWRITE(destination);
-#endif
             destination += SCREEN_WIDTH_IN_CHARACTERS;
             TEMP_A++;
             platform->renderFrame();
@@ -3282,34 +2484,22 @@ void PET_SCREEN_SHAKE()
         SELECT_TIMEOUT--; // this is to prevent accidental double-taps
     } // on cycle weapons or items.
     PET_BORDER_FLASH();
-#ifdef _AMIGA
-    if (SCREEN_SHAKE != 1) {
-#else
     if (SCREEN_SHAKE == 0) {
-#endif
         return;
     }
-#ifndef PLATFORM_HARDWARE_BASED_SHAKE_SCREEN
-#ifdef PLATFORM_LIVE_MAP_SUPPORT
     if (LIVE_MAP_ON != 1) {
-#endif
         if (SCREEN_SHAKE == 1) {
             platform->copyRect(8, 0, 0, 0, PLATFORM_SCREEN_WIDTH - 56, PLATFORM_SCREEN_HEIGHT - 32);
             platform->renderFrame(true);
             INVALIDATE_PREVIOUS_MAP();
         } else if (SCREEN_SHAKE == 3) {
-#ifdef OPTIMIZED_MAP_RENDERING
-#endif
             REDRAW_WINDOW = 1;
         }
         SCREEN_SHAKE++;
         if (SCREEN_SHAKE == 5) {
             SCREEN_SHAKE = 1;
         }
-#ifdef PLATFORM_LIVE_MAP_SUPPORT
     }
-#endif
-#endif
 }
 
 // So, it doesn't really flash the PET border, instead it
@@ -3319,27 +2509,11 @@ void PET_BORDER_FLASH()
     if (BORDER != 0) {
         // border flash should be active
         if (FLASH_STATE != 1) { // Is it already flashing?
-#ifndef PLATFORM_IMAGE_SUPPORT
-            // copy flash message to screen
-            for (int X = 0; X != 6; X++) {
-                writeToScreenMemory(19 * SCREEN_WIDTH_IN_CHARACTERS - 6 + X, OUCH1[X]);
-                writeToScreenMemory(20 * SCREEN_WIDTH_IN_CHARACTERS - 6 + X, OUCH2[X]);
-                writeToScreenMemory(21 * SCREEN_WIDTH_IN_CHARACTERS - 6 + X, OUCH3[X]);
-            }
-#endif
             platform->startFadeScreen(BORDER_COLOR, 15 - BORDER);
             FLASH_STATE = 1;
         }
     } else {
         if (FLASH_STATE != 0) {
-#ifndef PLATFORM_IMAGE_SUPPORT
-            // Remove message from screen
-            for (int X = 0; X != 6; X++) {
-                writeToScreenMemory(19 * SCREEN_WIDTH_IN_CHARACTERS - 6 + X, 32);
-                writeToScreenMemory(20 * SCREEN_WIDTH_IN_CHARACTERS - 6 + X, 32);
-                writeToScreenMemory(21 * SCREEN_WIDTH_IN_CHARACTERS - 6 + X, 32);
-            }
-#endif
             FLASH_STATE = 0;
             platform->stopFadeScreen();
         }
@@ -3347,29 +2521,15 @@ void PET_BORDER_FLASH()
 }
 
 uint8_t FLASH_STATE = 0;
-#ifndef PLATFORM_IMAGE_SUPPORT
-uint8_t OUCH1[] = { 0xCD, 0xA0, 0xA0, 0xA0, 0xA0, 0xCE };
-uint8_t OUCH2[] = { 0xA0, 0x8F, 0x95, 0x83, 0x88, 0xA0 };
-uint8_t OUCH3[] = { 0xCE, 0xA0, 0xA0, 0xA0, 0xA0, 0xCD };
-#endif
 
 // This is actually part of a background routine, but it has to be in the main
 // source because the screen effects used are unique on each system.
 void DEMATERIALIZE()
 {
-#ifdef PLATFORM_SPRITE_SUPPORT
     UNIT_TILE[0] = 243; // dematerialize tile
-#else
-    UNIT_TILE[0] = (UNIT_TIMER_B[UNIT] & 0x01) + 160; // dematerialize tile
-    UNIT_TILE[0] += (UNIT_TIMER_B[UNIT] & 0x08) >> 3;
-#endif
     UNIT_TIMER_B[UNIT]++;
     DEMATERIALIZE_FRAME = UNIT_TIMER_B[UNIT] >> 2;
-#ifdef PLATFORM_SPRITE_SUPPORT
     if (UNIT_TIMER_B[UNIT] != 0x20) {
-#else
-    if (UNIT_TIMER_B[UNIT] != 0x10) { // %00010000
-#endif
         UNIT_TIMER_A[UNIT] = 1;
         REDRAW_WINDOW = 1;
     } else {
@@ -3389,155 +2549,27 @@ void DEMATERIALIZE()
 
 void ANIMATE_PLAYER()
 {
-#ifdef PLATFORM_SPRITE_SUPPORT
     UNIT_TILE[0] = 96;
     WALK_FRAME++;
     WALK_FRAME &= 3;
-#else
-    if (UNIT_TILE[0] == 97) {
-        UNIT_TILE[0] = 96;
-    } else {
-        UNIT_TILE[0] = 97;
-    }
-#endif
 }
 
 void PLAY_SOUND(int sound)
 {
-#ifdef PLATFORM_MODULE_BASED_AUDIO
     platform->playSample(sound);
-#else
-    // check if music is playing
-    if (MUSIC_ON != 0 && SOUND_EFFECT == 0xFF) { // no sound effect currently being played
-        PATTERN_TEMP = CUR_PATTERN;
-        DATA_LINE_TEMP = DATA_LINE;
-        TEMPO_TEMP = TEMPO;
-    }
-    // check if we should play new effect.
-    if (SOUND_EFFECT != 0xFF) { // no sound effect currently being played
-        if (sound > SOUND_EFFECT) { // Prioritize sounds that have lower number.
-            return;
-        }
-    }
-    // Now process sound effect.
-    CUR_PATTERN = SOUND_LIBRARY[sound]; // Get waiting sound# from accumulator
-    SOUND_EFFECT = sound;
-    DATA_LINE = 0;
-#endif
 }
-
-#ifndef PLATFORM_MODULE_BASED_AUDIO
-uint8_t* PATTERN_TEMP;
-uint8_t DATA_LINE_TEMP;
-uint8_t TEMPO_TEMP;
-
-uint8_t* SOUND_LIBRARY[] = {
-    SND_EXPLOSION,      // sound 0
-    SND_EXPLOSION,      // sound 1
-    SND_MEDKIT,     // sound 2
-    SND_EMP,        // sound 3
-    SND_MAGNET,     // sound 4
-    SND_SHOCK,      // sound 5
-    SND_MOVE_OBJ,       // sound 6
-    SND_SHOCK,      // sound 7
-    SND_PLASMA,     // sound 8
-    SND_PISTOL,     // sound 9
-    SND_ITEM_FOUND,     // sound 10
-    SND_ERROR,      // sound 11
-    SND_CYCLE_WEAPON,   // sound 12
-    SND_CYCLE_ITEM,     // sound 13
-    SND_DOOR,       // sound 14
-    SND_MENU_BEEP,      // sound 15
-    SND_SHORT_BEEP,     // sound 16
-    SND_SHORT_BEEP,     // sound 17
-    WIN_MUSIC,      // sound 18   
-    LOSE_MUSIC     // sound 19
-};
-
-// 0 explosion
-// 1 small explosion
-// 2 medkit
-// 3 emp
-// 4 haywire
-// 5 evilbot
-// 6 move
-// 7 electric shock
-// 8 plasma gun
-// 9 fire pistol
-// 10 item found
-// 11 error
-// 12 change weapons
-// 13 change items
-// 14 door
-// 15 menu beep
-// 16 walk
-// 17 sfx (short beep)
-// 18 sfx
-
-void MUSIC_ROUTINE()
-{
-    if (SOUND_EFFECT == 0xFF && MUSIC_ON != 1) {
-        return;
-    }
-    if (TEMPO_TIMER != 0) {
-        TEMPO_TIMER--;
-        return;
-    }
-    uint8_t A = CUR_PATTERN[DATA_LINE];
-    if (A == 0) { // blank line (do nothing)
-        TEMPO_TIMER = TEMPO; // reset timer to wait for next line
-        DATA_LINE++;
-        return;
-    }
-    if (A == 37) { // END pattern
-        STOP_SONG();
-        return;
-    }
-    if (A == 38) {
-        ARP_MODE = 0;
-        platform->stopNote(); // RESET SOUND TO ZERO
-    }
-    if (A > 38 && A <= 49) { // IS IT A TEMPO COMMAND? COMMAND IS BETWEEN 39 AND 49 (TEMPO ADJUST)
-        TEMPO = A - 38;
-        DATA_LINE++;
-        return;
-    }
-    // PLAY A NOTE
-    ARP_MODE = A >> 6;
-    CHORD_ROOT = A & 0x3f; // %00111111
-    platform->playNote(CHORD_ROOT);
-    TEMPO_TIMER = TEMPO; // reset timer to wait for next line
-    DATA_LINE++;
-}
-#endif
 
 void STOP_SONG()
 {
-#ifdef PLATFORM_MODULE_BASED_AUDIO
     platform->stopSample();
-#else
-    // actually, stop sound effect.
-    platform->stopNote(); // turn off sound;
-    SOUND_EFFECT = 0xFF;
-    TEMPO_TIMER = TEMPO;
-    /// now restore music info for continued play.
-    if (MUSIC_ON != 1) {
-        return;
-    }
-    CUR_PATTERN = PATTERN_TEMP;
-    DATA_LINE = DATA_LINE_TEMP;
-    TEMPO = TEMPO_TEMP;
-#endif
 }
 
 void BACKGROUND_TASKS()
 {
     if (BGTIMER1 == 1) {
-#ifdef PLATFORM_LIVE_MAP_SUPPORT
         if (LIVE_MAP_ON) {
             DRAW_LIVE_MAP();
         } else
-#endif
         if (REDRAW_WINDOW == 1) {
             REDRAW_WINDOW = 0;
             DRAW_MAP_WINDOW();
@@ -3970,20 +3002,15 @@ void BIG_EXP_PHASE1()
     }
     BIG_EXP_ACT = 1; // Set flag so no other explosions can begin until this one ends.
     SCREEN_SHAKE = 1;
-#ifdef PLATFORM_HARDWARE_BASED_SHAKE_SCREEN
-    platform->startShakeScreen();
-#endif
     PLAY_SOUND(0); // explosion-sound SOUND PLAY
     BEX_PART1(); // check center piece for unit
     BEXCEN(); // check center piece for unit
-#ifdef PLATFORM_LIVE_MAP_SUPPORT
     if (LIVE_MAP_ON == 1) {
         GET_TILE_FROM_MAP();
         MAP_SOURCE[0] = 246;
         platform->renderLiveMapTile(MAP, MAP_X, MAP_Y);
         MAP_SOURCE[0] = TILE;
     }
-#endif
     BEX1_NORTH();
     BEX1_SOUTH();
     BEX1_EAST();
@@ -4177,11 +3204,9 @@ bool BEX_PART2()
 void BEX_PART3()
 {
     MAP_SOURCE[0] = 246;
-#ifdef PLATFORM_LIVE_MAP_SUPPORT
     if (LIVE_MAP_ON == 1) {
         platform->renderLiveMapTile(MAP, MAP_X, MAP_Y);
     }
-#endif
     BEXCEN();
 }
 
@@ -4286,9 +3311,6 @@ void BIG_EXP_PHASE2()
     UNIT_TYPE[UNIT] = 0; // Deactivate this AI
     BIG_EXP_ACT = 0;
     SCREEN_SHAKE = 0;
-#ifdef PLATFORM_HARDWARE_BASED_SHAKE_SCREEN
-    platform->stopShakeScreen();
-#endif
 }
 
 void RESTORE_TILE()
@@ -4303,19 +3325,15 @@ void RESTORE_TILE()
         } else {
             MAP_SOURCE[0] = TEMP_A;
         }
-#ifdef PLATFORM_LIVE_MAP_SUPPORT
         if (LIVE_MAP_ON == 1) {
             platform->renderLiveMapTile(MAP, MAP_X, MAP_Y);
         }
-#endif
     } else {
         // What to do if we encounter an explosive cannister
         MAP_SOURCE[0] = 135; // Blown cannister
-#ifdef PLATFORM_LIVE_MAP_SUPPORT
         if (LIVE_MAP_ON == 1) {
             platform->renderLiveMapTile(MAP, MAP_X, MAP_Y);
         }
-#endif
         for (int X = 28; X != 32; X++) { // Start of weapons units
             if (UNIT_TYPE[X] == 0) {
                 UNIT_TYPE[X] = 6; // bomb AI
@@ -4911,11 +3929,9 @@ void DRAW_VERTICAL_DOOR()
     MAP_SOURCE[0] = DOORPIECE2;
     MAP_SOURCE += 128;
     MAP_SOURCE[0] = DOORPIECE3;
-#ifdef PLATFORM_LIVE_MAP_SUPPORT
     if (LIVE_MAP_ON == 1) {
         platform->renderLiveMapTile(MAP, UNIT_LOC_X[UNIT], UNIT_LOC_Y[UNIT]);
     }
-#endif
 }
 
 void DRAW_HORIZONTAL_DOOR()
@@ -4927,11 +3943,9 @@ void DRAW_HORIZONTAL_DOOR()
     PLOT_TILE_TO_MAP();
     MAP_SOURCE[1] = DOORPIECE2;
     MAP_SOURCE[2] = DOORPIECE3;
-#ifdef PLATFORM_LIVE_MAP_SUPPORT
     if (LIVE_MAP_ON == 1) {
         platform->renderLiveMapTile(MAP, UNIT_LOC_X[UNIT], UNIT_LOC_Y[UNIT]);
     }
-#endif
 }
 uint8_t DOORPIECE1 = 0;
 uint8_t DOORPIECE2 = 0;
@@ -5306,76 +4320,6 @@ void CHECK_FOR_HIDDEN_UNIT()
     UNIT_FIND = 255; // no units found
 }
 
-#ifndef PLATFORM_IMAGE_SUPPORT
-// These are the included binary files that contain the screen
-// image for the main editor.
-uint8_t INTRO_TEXT[] = {
-    0x60, 0x20, 0x02, 0x4e, 0x60, 0x63, 0x0a, 0x4e, 0x65, 0x60, 0x20, 0x05, 0xe9, 0xce, 0x20, 0x20, 0xe9, 0xce, 0x60, 0x20,
-    0x0d, 0xcd, 0x60, 0xa0, 0x09, 0xce, 0x20, 0x65, 0x60, 0x20, 0x05, 0x66, 0xa0, 0x20, 0x20, 0x66, 0xa0, 0x60, 0x20, 0x0d,
-    0xa0, 0x13, 0x14, 0x01, 0x12, 0x14, 0x20, 0x07, 0x01, 0x0d, 0x05, 0xa0, 0x20, 0x65, 0x60, 0x20, 0x04, 0xe9, 0x66, 0xce,
-    0xa0, 0xa0, 0x66, 0xce, 0xce, 0x60, 0x20, 0x0c, 0xa0, 0x13, 0x05, 0x0c, 0x05, 0x03, 0x14, 0x20, 0x0d, 0x01, 0x10, 0xa0,
-    0x20, 0x65, 0x60, 0x20, 0x03, 0xe9, 0xa0, 0xe3, 0x60, 0xa0, 0x02, 0xe3, 0x60, 0xce, 0x02, 0x60, 0x20, 0x0b, 0xa0, 0x04,
-    0x09, 0x06, 0x06, 0x09, 0x03, 0x15, 0x0c, 0x14, 0x19, 0xa0, 0x20, 0x65, 0x60, 0x20, 0x02, 0xe9, 0x60, 0x66, 0x06, 0xce,
-    0xce, 0xa0, 0x60, 0x20, 0x0b, 0xa0, 0x03, 0x0f, 0x0e, 0x14, 0x12, 0x0f, 0x0c, 0x13, 0x20, 0x20, 0xa0, 0x20, 0x65, 0x60,
-    0x20, 0x02, 0x66, 0x3a, 0x4d, 0x60, 0x3a, 0x02, 0x4e, 0x3a, 0x66, 0xa0, 0xa0, 0x60, 0x20, 0x02, 0xe9, 0xce, 0x20, 0x20,
-    0xe9, 0xce, 0x60, 0x20, 0x02, 0xce, 0x60, 0xa0, 0x09, 0xcd, 0x4e, 0x60, 0x20, 0x03, 0x66, 0x55, 0x43, 0x4d, 0x3a, 0x4e,
-    0x43, 0x49, 0x66, 0xa0, 0xa0, 0x60, 0x20, 0x02, 0x66, 0xa0, 0x20, 0x20, 0x66, 0xa0, 0x60, 0x20, 0x13, 0x66, 0x42, 0x51,
-    0x48, 0x3a, 0x42, 0x51, 0x48, 0x66, 0xa0, 0x69, 0x60, 0x20, 0x02, 0x66, 0xa0, 0x20, 0x20, 0x66, 0xa0, 0x60, 0x20, 0x02,
-    0x70, 0x60, 0x40, 0x02, 0x73, 0x0d, 0x01, 0x10, 0x6b, 0x60, 0x40, 0x02, 0x6e, 0x60, 0x20, 0x03, 0x66, 0x4a, 0x46, 0x4b,
-    0x3a, 0x4a, 0x46, 0x4b, 0x66, 0xce, 0x60, 0x20, 0x03, 0x66, 0xce, 0xa0, 0xa0, 0x66, 0xa0, 0x20, 0x20, 0x0b, 0x09, 0x0c,
-    0x0c, 0x20, 0x01, 0x0c, 0x0c, 0x20, 0x08, 0x15, 0x0d, 0x01, 0x0e, 0x13, 0x60, 0x20, 0x03, 0x60, 0x66, 0x06, 0xa0, 0xa0,
-    0x60, 0x20, 0x03, 0x60, 0x66, 0x04, 0x69, 0x60, 0x20, 0x14, 0x66, 0x60, 0xd0, 0x04, 0x66, 0xa0, 0xa0, 0x60, 0x20, 0x05,
-    0x66, 0xa0, 0x20, 0x20, 0x60, 0x43, 0x14, 0x66, 0x60, 0xd0, 0x04, 0x66, 0xa0, 0x69, 0x60, 0x43, 0x05, 0x66, 0xa0, 0x43,
-    0x43, 0x60, 0x3a, 0x14, 0x60, 0x66, 0x06, 0xce, 0xa0, 0xa0, 0xce, 0x60, 0x3a, 0x03, 0x66, 0xa0, 0x60, 0x3a, 0x16, 0xe9,
-    0xa0, 0xa0, 0xe7, 0xd0, 0xce, 0x60, 0xa0, 0x02, 0xce, 0xa0, 0x60, 0x3a, 0x03, 0x66, 0xa0, 0x60, 0x3a, 0x15, 0xe9, 0x60,
-    0xa0, 0x03, 0xe3, 0x60, 0xa0, 0x02, 0xce, 0xa0, 0xa0, 0x60, 0x3a, 0x03, 0x66, 0xa0, 0x60, 0x3a, 0x0b, 0xe9, 0xce, 0xdf,
-    0x60, 0x3a, 0x06, 0x60, 0x66, 0x08, 0xd5, 0xc0, 0xc9, 0x60, 0x3a, 0x03, 0x66, 0xce, 0xdf, 0x60, 0x3a, 0x09, 0xe9, 0xe3,
-    0xcd, 0xce, 0x60, 0xa0, 0x06, 0x66, 0x51, 0x60, 0x66, 0x04, 0x51, 0x66, 0xdd, 0xce, 0xe3, 0x60, 0xa0, 0x02, 0xce, 0xa0,
-    0xcd, 0xce, 0x60, 0x3a, 0x09, 0xa0, 0xd1, 0xe7, 0x60, 0x66, 0x10, 0xdd, 0x60, 0x66, 0x04, 0xa0, 0xd1, 0xe7, 0x69, 0x60,
-    0x3a, 0x09, 0x5f, 0xa0, 0xce, 0x60, 0x3a, 0x07, 0x60, 0x66, 0x08, 0xca, 0xc0, 0xcb, 0x60, 0x3a, 0x02, 0x5f, 0xe4, 0x69,
-    0x60, 0x3a, 0x0b, 0x66, 0xa0, 0x3a, 0xe9, 0xa0, 0xa0, 0xce, 0x3a, 0xe9, 0xa0, 0xa0, 0xce, 0xe9, 0xa0, 0xa0, 0xce, 0x66,
-    0xe9, 0xa0, 0xa0, 0xce, 0xe9, 0xa0, 0xa0, 0xce, 0xe9, 0xa0, 0xa0, 0xce, 0x60, 0x3a, 0x0a, 0x66, 0xa0, 0x3a, 0x60, 0x66,
-    0x02, 0xce, 0xce, 0x60, 0x66, 0x02, 0xa0, 0x60, 0x66, 0x02, 0xce, 0xce, 0x60, 0x66, 0x02, 0xa0, 0x60, 0x66, 0x02, 0x69,
-    0x60, 0x66, 0x02, 0x69, 0x60, 0x3a, 0x0a, 0x66, 0xa0, 0x3a, 0x66, 0xce, 0xa0, 0x66, 0xce, 0x66, 0xa0, 0x66, 0xa0, 0x66,
-    0xce, 0xa0, 0x66, 0xce, 0x66, 0xa0, 0x66, 0xa0, 0x3a, 0x66, 0xa0, 0x3a, 0x66, 0xce, 0xa0, 0xce, 0x60, 0x3a, 0x0a, 0x66,
-    0xa0, 0x3a, 0x60, 0x66, 0x02, 0xce, 0xce, 0x66, 0xa0, 0x66, 0xa0, 0x60, 0x66, 0x02, 0xce, 0xce, 0x66, 0xa0, 0x66, 0xa0,
-    0x3a, 0x66, 0xa0, 0x3a, 0x60, 0x66, 0x02, 0xa0, 0x60, 0x3a, 0x0a, 0x66, 0xa0, 0x3a, 0x66, 0xa0, 0x3a, 0x66, 0xa0, 0x66,
-    0xce, 0x66, 0xa0, 0x66, 0xce, 0xa0, 0x66, 0x69, 0x66, 0xce, 0x66, 0xa0, 0x3a, 0x66, 0xa0, 0x3a, 0xe9, 0xa0, 0x66, 0xa0,
-    0x60, 0x3a, 0x0a, 0x66, 0xa0, 0x3a, 0x66, 0x69, 0x3a, 0x66, 0x69, 0x60, 0x66, 0x02, 0x69, 0x60, 0x66, 0x02, 0x69, 0x3a,
-    0x60, 0x66, 0x02, 0x69, 0x3a, 0x66, 0x69, 0x3a, 0x60, 0x66, 0x02, 0x69, 0x3a
-};
-
-uint8_t SCR_TEXT[] = {
-    0x60, 0x20, 0x20, 0x5d, 0x17, 0x05, 0x01, 0x10, 0x0f, 0x0e, 0x60, 0x20, 0x20, 0x5d, 0x60, 0x20, 0x26, 0x5d, 0x60, 0x20,
-    0x26, 0x5d, 0x60, 0x20, 0x26, 0x5d, 0x60, 0x20, 0x26, 0x5d, 0x60, 0x20, 0x26, 0x6b, 0x60, 0x40, 0x05, 0x60, 0x20, 0x20,
-    0x5d, 0x20, 0x09, 0x14, 0x05, 0x0d, 0x60, 0x20, 0x21, 0x5d, 0x60, 0x20, 0x26, 0x5d, 0x60, 0x20, 0x26, 0x5d, 0x60, 0x20,
-    0x26, 0x5d, 0x60, 0x20, 0x26, 0x5d, 0x60, 0x20, 0x26, 0x6b, 0x60, 0x40, 0x05, 0x60, 0x20, 0x20, 0x5d, 0x20, 0x0b, 0x05,
-    0x19, 0x13, 0x60, 0x20, 0x21, 0x5d, 0x60, 0x20, 0x26, 0x5d, 0x60, 0x20, 0x26, 0x6b, 0x60, 0x40, 0x05, 0x60, 0x20, 0x20,
-    0x5d, 0x60, 0x20, 0x26, 0x5d, 0x60, 0x20, 0x26, 0x5d, 0x60, 0x20, 0x05, 0x73, 0x09, 0x0e, 0x06, 0x0f, 0x12, 0x0d, 0x01,
-    0x14, 0x09, 0x0f, 0x0e, 0x6b, 0x60, 0x40, 0x13, 0x5b, 0x60, 0x40, 0x05, 0x60, 0x20, 0x20, 0x5d, 0x08, 0x05, 0x01, 0x0c,
-    0x14, 0x08, 0x60, 0x20, 0x20, 0x5d, 0x60, 0x20, 0x26, 0x5d, 0x60, 0x71, 0x05
-};
-
-uint8_t SCR_ENDGAME[] = {
-    0x55, 0x60, 0x40, 0x03, 0x73, 0x01, 0x14, 0x14, 0x01, 0x03, 0x0B, 0x20, 0x0F, 0x06, 0x20,
-    0x14, 0x08, 0x05, 0x20, 0x10, 0x05, 0x14, 0x13, 0x03, 0x09, 0x09, 0x20, 0x12, 0x0F, 0x02,
-    0x0F, 0x14, 0x13, 0x6B, 0x60, 0x40, 0x03, 0x49, 0x5D, 0x60, 0x20, 0x25, 0x5D, 0x5D, 0x60,
-    0x20, 0x25, 0x5D, 0x5D, 0x60, 0x20, 0x25, 0x5D, 0x5D, 0x60, 0x20, 0x25, 0x5D, 0x5D, 0x60,
-    0x20, 0x25, 0x5D, 0x5D, 0x60, 0x20, 0x25, 0x5D, 0x5D, 0x60, 0x20, 0x0A, 0x13, 0x03, 0x05,
-    0x0E, 0x01, 0x12, 0x09, 0x0F, 0x3A, 0x60, 0x20, 0x11, 0x5D, 0x5D, 0x60, 0x20, 0x25, 0x5D,
-    0x5D, 0x60, 0x20, 0x06, 0x05, 0x0C, 0x01, 0x10, 0x13, 0x05, 0x04, 0x20, 0x14, 0x09, 0x0D,
-    0x05, 0x3A, 0x60, 0x20, 0x11, 0x5D, 0x5D, 0x60, 0x20, 0x25, 0x5D, 0x5D, 0x60, 0x20, 0x02,
-    0x12, 0x0F, 0x02, 0x0F, 0x14, 0x13, 0x20, 0x12, 0x05, 0x0D, 0x01, 0x09, 0x0E, 0x09, 0x0E,
-    0x07, 0x3A, 0x60, 0x20, 0x11, 0x5D, 0x5D, 0x60, 0x20, 0x25, 0x5D, 0x5D, 0x20, 0x20, 0x13,
-    0x05, 0x03, 0x12, 0x05, 0x14, 0x13, 0x20, 0x12, 0x05, 0x0D, 0x01, 0x09, 0x0E, 0x09, 0x0E,
-    0x07, 0x3A, 0x60, 0x20, 0x11, 0x5D, 0x5D, 0x60, 0x20, 0x25, 0x5D, 0x5D, 0x60, 0x20, 0x08,
-    0x04, 0x09, 0x06, 0x06, 0x09, 0x03, 0x15, 0x0C, 0x14, 0x19, 0x3A, 0x60, 0x20, 0x11, 0x5D,
-    0x5D, 0x60, 0x20, 0x25, 0x5D, 0x5D, 0x60, 0x20, 0x25, 0x5D, 0x5D, 0x60, 0x20, 0x25, 0x5D,
-    0x5D, 0x60, 0x20, 0x25, 0x5D, 0x5D, 0x60, 0x20, 0x25, 0x5D, 0x5D, 0x60, 0x20, 0x25, 0x5D,
-    0x5D, 0x60, 0x20, 0x25, 0x5D, 0x5D, 0x60, 0x20, 0x25, 0x5D, 0x4A, 0x60, 0x40, 0x25, 0x4B
-};
-#endif
-
 uint8_t SCR_CUSTOM_KEYS[] = {
     0x55, 0x60, 0x40, 0x03, 0x73, 0x01, 0x14, 0x14, 0x01, 0x03, 0x0B, 0x20, 0x0F, 0x06, 0x20,
     0x14, 0x08, 0x05, 0x20, 0x10, 0x05, 0x14, 0x13, 0x03, 0x09, 0x09, 0x20, 0x12, 0x0F, 0x02,
@@ -5413,350 +4357,6 @@ char CINEMA_MESSAGE[] =
     "rocky 5000, all my circuits the movie, "
     "conan the librarian, and more! comin";
 
-#ifndef PLATFORM_IMAGE_SUPPORT
-uint8_t WEAPON1A[] = {
-    0x2c, 0x20, 0x20, 0x20, 0x20, 0x2c
-};
-
-uint8_t WEAPON1B[] = {
-    0xe2, 0xf9, 0xef, 0xe4, 0x66, 0x66
-};
-
-uint8_t WEAPON1C[] = {
-    0x20, 0x20, 0x20, 0x20, 0x5f, 0xdf
-};
-
-uint8_t WEAPON1D[] = {
-    0x20, 0x20, 0x20, 0x20, 0x20, 0x20
-};
-
-uint8_t PISTOL1A[] = {
-    0x20, 0x20, 0x20, 0x20, 0x20, 0x20
-};
-
-uint8_t PISTOL1B[] = {
-    0x20, 0x68, 0x62, 0x62, 0x62, 0x20
-};
-
-uint8_t PISTOL1C[] = {
-    0x20, 0x20, 0x20, 0x5f, 0xdf, 0x20
-};
-
-uint8_t PISTOL1D[] = {
-    0x20, 0x20, 0x20, 0x20, 0x20, 0x20
-};
-
-uint8_t TBOMB1A[] = {
-    0x20, 0x20, 0x55, 0x2a, 0x20, 0x20
-};
-
-uint8_t TBOMB1B[] = {
-    0x20, 0x55, 0x66, 0x49, 0x20, 0x20
-};
-
-uint8_t TBOMB1C[] = {
-    0x20, 0x42, 0x20, 0x48, 0x20, 0x20
-};
-
-uint8_t TBOMB1D[] = {
-    0x20, 0x4a, 0x46, 0x4b, 0x20, 0x20
-};
-
-uint8_t EMP1A[] = {
-    0x20, 0x55, 0x43, 0x43, 0x49, 0x20
-};
-
-uint8_t EMP1B[] = {
-    0x66, 0xdf, 0x55, 0x49, 0xe9, 0x66
-};
-
-uint8_t EMP1C[] = {
-    0x66, 0x69, 0x4a, 0x4b, 0x5f, 0x66
-};
-
-uint8_t EMP1D[] = {
-    0x20, 0x4a, 0x46, 0x46, 0x4b, 0x20
-};
-
-uint8_t MAG1A[] = {
-    0x4d, 0x70, 0x6e, 0x70, 0x6e, 0x4e
-};
-
-uint8_t MAG1B[] = {
-    0x20, 0x42, 0x42, 0x48, 0x48, 0x20
-};
-
-uint8_t MAG1C[] = {
-    0x63, 0x42, 0x4a, 0x4b, 0x48, 0x63
-};
-
-uint8_t MAG1D[] = {
-    0x4e, 0x4a, 0x46, 0x46, 0x4b, 0x4d
-};
-
-uint8_t MED1A[] = {
-    0x20, 0x55, 0x43, 0x43, 0x49, 0x20
-};
-
-uint8_t MED1B[] = {
-    0x20, 0xA0, 0xA0, 0xA0, 0xA0, 0x20
-};
-
-uint8_t MED1C[] = {
-    0x20, 0xA0, 0xEB, 0xF3, 0xA0, 0x20
-};
-
-uint8_t MED1D[] = {
-    0x20, 0xE4, 0xE4, 0xE4, 0xE4, 0x20
-};
-#endif
-
-#ifndef PLATFORM_MODULE_BASED_AUDIO
-uint8_t NOTE_FREQ[] = {
-    0,  // placeholder for zero
-    251, // Note 01    B   (Lowest note the PET can produce)
-    // octave 4
-    238, // Note 02    C
-    224, // Note 03    C#
-    210, // Note 04    D
-    199, // Note 05    D#
-    188, // Note 06    E
-    177, // Note 07    F
-    168, // Note 08    F#
-    158, // Note 09    G
-    149, // Note 10    G#
-    140, // Note 11    A
-    133, // Note 12    A#
-    251, // Note 13    B
-    // octave 5
-    238, // Note 14    C
-    224, // Note 15    C#
-    210, // Note 16    D
-    199, // Note 17    D#
-    188, // Note 18    E
-    177, // Note 19    F
-    168, // Note 20    F#
-    158, // Note 21    G
-    149, // Note 22    G#
-    140, // Note 23    A
-    133, // Note 24    A#
-    251, // Note 25    B
-    // octave 6
-    238, // Note 26    C
-    224, // Note 27    C#
-    210, // Note 28    D
-    199, // Note 29    D#
-    188, // Note 30    E
-    177, // Note 31    F
-    168, // Note 32    F#
-    158, // Note 33    G
-    149, // Note 34    G#
-    140, // Note 35    A
-    133 // Note 36    A#  (Highest note the PET can produce)
-};
-
-uint8_t NOTE_OCTAVE[] = {
-    00,  // placeholder for zero
-    15,  // Note 01    B   (Lowest note the PET can produce)
-    // octave 4
-    15,  // Note 02    C
-    15,  // Note 03    C#
-    15,  // Note 04    D
-    15,  // Note 05    D#
-    15,  // Note 06    E
-    15,  // Note 07    F
-    15,  // Note 08    F#
-    15,  // Note 09    G
-    15,  // Note 10    G#
-    15,  // Note 11    A
-    15,  // Note 12    A#
-    51,  // Note 13    B
-    // octave 5
-    51,  // Note 14    C
-    51,  // Note 15    C#
-    51,  // Note 16    D
-    51,  // Note 17    D#
-    51,  // Note 18    E
-    51,  // Note 19    F
-    51,  // Note 20    F#
-    51,  // Note 21    G
-    51,  // Note 22    G#
-    51,  // Note 23    A
-    51,  // Note 24    A#
-    85,  // Note 25    B
-    // octave 6
-    85,  // Note 26    C
-    85,  // Note 27    C#
-    85,  // Note 28    D
-    85,  // Note 29    D#
-    85,  // Note 30    E
-    85,  // Note 31    F
-    85,  // Note 32    F#
-    85,  // Note 33    G
-    85,  // Note 34    G#
-    85,  // Note 35    A
-    85  // Note 36    A#  (Highest note the PET can produce)
-};
-
-uint8_t SND_EXPLOSION[] = {
-    0x27, 0x0B, 0x0D, 0x07, 0x08, 0x0B, 0x03, 0x07, 0x03, 0x05, 0x06, 0x0C, 0x0E, 0x02, 0x01,
-    0x06, 0x08, 0x0D, 0x0B, 0x01, 0x05, 0x06, 0x07, 0x0A, 0x0A, 0x03, 0x06, 0x25
-};
-
-uint8_t SND_MEDKIT[] = {
-    0x29, 0x09, 0x04, 0x01, 0x25
-};
-
-uint8_t SND_EMP[] = {
-    0x27, 0x02, 0x07, 0x0C, 0x11, 0x16, 0x1B, 0x20, 0x1B, 0x16, 0x11, 0x0C, 0x07, 0x02, 0x25
-};
-
-uint8_t SND_MAGNET[] = {
-    0x2A, 0x17, 0x0D, 0x12, 0x23, 0x0F, 0x15, 0x09, 0x17, 0x03, 0x25
-};
-
-uint8_t SND_SHOCK[] = {
-    0x27, 0x26, 0x0E, 0x26, 0x0E, 0x26, 0x0E, 0x26, 0x0E, 0x26, 0x04,
-    0x26, 0x04, 0x26, 0x04, 0x26, 0x04, 0x25
-};
-
-uint8_t SND_MOVE_OBJ[] = {
-    0x28, 0x02, 0x26, 0x0E, 0x26, 0x25
-};
-
-uint8_t SND_PLASMA[] = {
-    0x27, 0x07, 0x13, 0x06, 0x12, 0x07, 0x13, 0x06, 0x12,
-    0x07, 0x13, 0x06, 0x12, 0x07, 0x13, 0x25 
-};
-
-uint8_t SND_PISTOL[] = {
-    0x27, 0x24, 0x23, 0x22, 0x21, 0x20, 0x1F, 0x25
-};
-
-uint8_t SND_ITEM_FOUND[] = {
-    0x28, 0x09, 0x15, 0x0B, 0x17, 0x0D, 0x19,
-    0x0E, 0x02, 0x0E, 0x02, 0x0E, 0x25
-};
-
-uint8_t SND_ERROR[] = {
-    0x27, 0x01, 0x26, 0x01, 0x26, 0x01, 0x26, 0x01, 0x25
-};
-
-uint8_t SND_CYCLE_WEAPON[] = {
-    0x27, 0x15, 0x13, 0x11, 0x0F, 0x0D, 0x15, 0x25
-};
-
-uint8_t SND_CYCLE_ITEM[] = {
-    0x27, 0x0D, 0x0C, 0x0B, 0x0A, 0x0B, 0x0C, 0x0D, 0x25
-};
-
-uint8_t SND_DOOR[] = {
-    0x28, 0x0B, 0x0D, 0x0E, 0x10, 0x12, 0x13, 0x15, 0x25
-};
-
-uint8_t SND_MENU_BEEP[] = {
-    0x28, 0x0E, 0x04, 0x25
-};
-
-uint8_t SND_SHORT_BEEP[] = {
-    0x28, 0x11, 0x25
-};
-
-uint8_t INTRO_MUSIC[] = {
-    0x2D, 0x06, 0x12, 0x0F, 0x03, 0x0F, 0x0D, 0x08, 0x12, 0x03, 0x06, 0x08, 0x0A, 0x03, 0x12,
-    0x03, 0x09, 0x2D, 0x03, 0x00, 0x01, 0x01, 0x03, 0x26, 0x06, 0x26, 0x00, 0x00, 0x01, 0x26,
-    0x03, 0x01, 0x00, 0x00, 0x03, 0x00, 0x01, 0x01, 0x03, 0x26, 0x06, 0x26, 0x00, 0x00, 0x01,
-    0x26, 0x08, 0x06, 0x00, 0x00, 0x03, 0x00, 0x01, 0x01, 0x03, 0x26, 0x06, 0x26, 0x00, 0x00,
-    0x01, 0x26, 0x03, 0x01, 0x00, 0x00, 0x08, 0x0A, 0x08, 0x00, 0x06, 0x00, 0x03, 0x01, 0x03,
-    0x26, 0x06, 0x26, 0x03, 0x26, 0x00, 0x00, 0x0F, 0x00, 0x0D, 0x0F, 0x26, 0x00, 0x12, 0x00,
-    0x00, 0x00, 0x0D, 0x0F, 0x12, 0x00, 0x0F, 0x26, 0x0F, 0x00, 0x0D, 0x0F, 0x26, 0x00, 0x12,
-    0x00, 0x00, 0x00, 0x0D, 0x0F, 0x14, 0x00, 0x12, 0x00, 0x0F, 0x00, 0x0D, 0x0F, 0x26, 0x00,
-    0x12, 0x00, 0x00, 0x00, 0x0D, 0x0F, 0x14, 0x00, 0x0F, 0x00, 0x14, 0x16, 0x14, 0x00, 0x12,
-    0x00, 0x0F, 0x0D, 0x0F, 0x26, 0x12, 0x26, 0x0F, 0x26, 0x00, 0x00, 0x0F, 0x00, 0x0D, 0x0F,
-    0x26, 0x00, 0x12, 0x00, 0x00, 0x00, 0x0D, 0x0F, 0x12, 0x26, 0x0F, 0x26, 0x0F, 0x00, 0x0D,
-    0x0F, 0x26, 0x00, 0x12, 0x00, 0x00, 0x00, 0x0D, 0x0F, 0x12, 0x00, 0x14, 0x00, 0x0F, 0x00,
-    0x0D, 0x0F, 0x26, 0x00, 0x12, 0x00, 0x00, 0x00, 0x0D, 0x0F, 0x12, 0x00, 0x0F, 0x00, 0x14,
-    0x16, 0x14, 0x00, 0x12, 0x14, 0x12, 0x00, 0x0F, 0x12, 0x0D, 0x00, 0x0F, 0x08, 0x0A, 0x0B,
-    0x0F, 0x04, 0x01, 0x04, 0x0D, 0x04, 0x01, 0x04, 0x0F, 0x04, 0x01, 0x04, 0x12, 0x04, 0x01,
-    0x04, 0x0D, 0x04, 0x0F, 0x04, 0x12, 0x04, 0x01, 0x04, 0x0D, 0x04, 0x01, 0x04, 0x0B, 0x0A,
-    0x08, 0x06, 0x08, 0x04, 0x01, 0x04, 0x0F, 0x04, 0x01, 0x04, 0x0D, 0x04, 0x01, 0x04, 0x0B,
-    0x00
-};
-
-uint8_t WIN_MUSIC[] = {
-    0x2C, 0x07, 0x00, 0x09, 0x00, 0x0C, 0x00, 0x10, 0x00, 0x00, 0x0E, 0x00, 0x00, 0x10, 0x00,
-    0x11, 0x00, 0x00, 0x10, 0x00, 0x00, 0x11, 0x00, 0x13, 0x00, 0x00, 0x00, 0x00, 0x00, 0x25,
-};
-
-uint8_t LOSE_MUSIC[] = {
-    0x2F, 0x0D, 0x00, 0x0B, 0x00, 0x09, 0x00, 0x08, 0x00, 0x06, 0x00, 0x02, 0x00, 0x00, 0x04,
-    0x00, 0x00, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x25
-};
-
-uint8_t IN_GAME_MUSIC1[] = {
-    0x30, 0x01, 0x03, 0x04, 0x06, 0x08, 0x00, 0x06, 0x04, 0x06, 0x26, 0x0B, 0x26, 0x09, 0x26,
-    0x06, 0x04, 0x06, 0x26, 0x0B, 0x26, 0x09, 0x26, 0x04, 0x03, 0x04, 0x26, 0x09, 0x26, 0x08,
-    0x00, 0x00, 0x00, 0x01, 0x03, 0x04, 0x06, 0x08, 0x00, 0x06, 0x04, 0x06, 0x26, 0x0B, 0x26,
-    0x09, 0x26, 0x06, 0x04, 0x06, 0x26, 0x0F, 0x26, 0x0B, 0x26, 0x09, 0x08, 0x09, 0x00, 0x00,
-    0x00, 0x08, 0x00, 0x00, 0x00, 0x09, 0x00, 0x14, 0x00, 0x15, 0x00, 0x0B, 0x09, 0x08, 0x00,
-    0x12, 0x00, 0x14, 0x00, 0x09, 0x08, 0x06, 0x26, 0x12, 0x00, 0x14, 0x00, 0x02, 0x04, 0x08,
-    0x09, 0x08, 0x06, 0x08, 0x00, 0x00, 0x00, 0x09, 0x00, 0x14, 0x00, 0x15, 0x00, 0x0B, 0x09,
-    0x08, 0x00, 0x12, 0x00, 0x14, 0x00, 0x09, 0x08, 0x06, 0x00, 0x12, 0x00, 0x14, 0x00, 0x02,
-    0x06, 0x0D, 0x00, 0x0B, 0x09, 0x0B, 0x00, 0x00, 0x00, 0x01, 0x03, 0x04, 0x06, 0x08, 0x00,
-    0x06, 0x04, 0x06, 0x26, 0x0B, 0x26, 0x09, 0x26, 0x06, 0x04, 0x06, 0x26, 0x0B, 0x26, 0x09,
-    0x26, 0x04, 0x03, 0x04, 0x26, 0x09, 0x26, 0x08, 0x00, 0x00, 0x00, 0x01, 0x03, 0x04, 0x06,
-    0x08, 0x00, 0x06, 0x04, 0x06, 0x26, 0x0B, 0x26, 0x09, 0x26, 0x06, 0x04, 0x06, 0x26, 0x0F,
-    0x26, 0x0B, 0x26, 0x09, 0x08, 0x09, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x26, 0x08, 0x00,
-    0x13, 0x00, 0x14, 0x00, 0x16, 0x14, 0x13, 0x00, 0x05, 0x00, 0x07, 0x00, 0x14, 0x13, 0x11,
-    0x00, 0x05, 0x00, 0x07, 0x00, 0x01, 0x03, 0x07, 0x08, 0x07, 0x05, 0x07, 0x00, 0x00, 0x00,
-    0x08, 0x00, 0x13, 0x00, 0x14, 0x00, 0x0A, 0x08, 0x07, 0x00, 0x11, 0x00, 0x13, 0x00, 0x08,
-    0x07, 0x05, 0x00, 0x11, 0x00, 0x13, 0x00, 0x03, 0x04, 0x09, 0x00, 0x06, 0x00, 0x08, 0x00,
-    0x00
-};
-
-uint8_t IN_GAME_MUSIC2[] = {
-    0x2E, 0x03, 0x00, 0x26, 0x03, 0x0F, 0x00, 0x00, 0x03, 0x00, 0x00, 0x0F, 0x00, 0x01, 0x0D,
-    0x02, 0x0E, 0x03, 0x00, 0x26, 0x03, 0x0F, 0x00, 0x00, 0x03, 0x00, 0x00, 0x0F, 0x00, 0x01,
-    0x0D, 0x02, 0x0E, 0x0F, 0x26, 0x00, 0x0F, 0x26, 0x00, 0x0F, 0x26, 0x00, 0x0F, 0x00, 0x12,
-    0x00, 0x0F, 0x26, 0x0F, 0x26, 0x00, 0x0F, 0x26, 0x00, 0x0F, 0x26, 0x00, 0x0F, 0x00, 0x14,
-    0x00, 0x0F, 0x26, 0x0F, 0x26, 0x00, 0x0F, 0x26, 0x00, 0x0F, 0x26, 0x00, 0x0F, 0x00, 0x12,
-    0x00, 0x0F, 0x00, 0x0D, 0x00, 0x00, 0x0E, 0x00, 0x00, 0x0F, 0x30, 0x00, 0x00, 0x26, 0x00,
-    0x00, 0x2E, 0x0F, 0x26, 0x00, 0x0F, 0x26, 0x00, 0x0F, 0x26, 0x00, 0x0F, 0x00, 0x12, 0x00,
-    0x0F, 0x00, 0x0F, 0x26, 0x00, 0x0F, 0x26, 0x00, 0x0F, 0x26, 0x00, 0x0F, 0x00, 0x14, 0x00,
-    0x0F, 0x26, 0x0F, 0x26, 0x00, 0x0F, 0x26, 0x00, 0x0F, 0x26, 0x00, 0x0F, 0x00, 0x12, 0x00,
-    0x0F, 0x00, 0x0D, 0x00, 0x00, 0x0E, 0x00, 0x00, 0x0F, 0x00, 0x00, 0x00, 0x0E, 0x00, 0x0D,
-    0x00, 0x0C, 0x26, 0x0C, 0x00, 0x00, 0x0E, 0x00, 0x00, 0x0F, 0x30, 0x00, 0x00, 0x00, 0x26,
-    0x00, 0x00, 0x00, 0x2E, 0x0C, 0x00, 0x00, 0x0E, 0x00, 0x00, 0x11, 0x30, 0x00, 0x00, 0x00,
-    0x26, 0x00, 0x00, 0x00, 0x2E, 0x0C, 0x00, 0x00, 0x0E, 0x00, 0x00, 0x13, 0x00, 0x00, 0x00,
-    0x14, 0x00, 0x13, 0x00, 0x11, 0x00, 0x0C, 0x00, 0x00, 0x0E, 0x00, 0x00, 0x0F, 0x30, 0x00,
-    0x00, 0x00, 0x26, 0x00, 0x00, 0x00, 0x2E, 0x0C, 0x00, 0x00, 0x0E, 0x00, 0x00, 0x11, 0x30,
-    0x00, 0x00, 0x00, 0x26, 0x00, 0x00, 0x00, 0x2E, 0x0C, 0x00, 0x00, 0x0E, 0x00, 0x00, 0x13,
-    0x00, 0x00, 0x00, 0x14, 0x00, 0x13, 0x00, 0x11, 0x00, 0x0F, 0x00, 0x0E, 0x00, 0x0D, 0x2E,
-    0x00
-};
-
-uint8_t IN_GAME_MUSIC3[] = {
-    0x2C, 0x02, 0x00, 0x09, 0x00, 0x0E, 0x00, 0x09, 0x00, 0x0E, 0x00, 0x09, 0x00, 0x02, 0x00,
-    0x09, 0x00, 0x0C, 0x00, 0x09, 0x00, 0x0C, 0x00, 0x09, 0x00, 0x02, 0x00, 0x09, 0x00, 0x0E,
-    0x00, 0x09, 0x00, 0x0E, 0x00, 0x09, 0x00, 0x02, 0x00, 0x09, 0x00, 0x0C, 0x00, 0x09, 0x00,
-    0x0C, 0x00, 0x09, 0x00, 0x2F, 0x0E, 0x00, 0x00, 0x00, 0x00, 0x2C, 0x0C, 0x00, 0x00, 0x00,
-    0x09, 0x00, 0x0C, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x09, 0x00, 0x0C, 0x00, 0x00,
-    0x00, 0x09, 0x00, 0x0C, 0x00, 0x2F, 0x0E, 0x00, 0x00, 0x00, 0x00, 0x2C, 0x0C, 0x00, 0x09,
-    0x00, 0x26, 0x00, 0x09, 0x00, 0x26, 0x00, 0x00, 0x00, 0x09, 0x00, 0x0C, 0x00, 0x10, 0x00,
-    0x11, 0x00, 0x10, 0x00, 0x0C, 0x00, 0x2F, 0x0E, 0x00, 0x00, 0x00, 0x00, 0x2C, 0x0C, 0x00,
-    0x00, 0x00, 0x09, 0x00, 0x0C, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x09, 0x00, 0x0C,
-    0x00, 0x00, 0x00, 0x09, 0x00, 0x0C, 0x00, 0x2F, 0x0E, 0x00, 0x00, 0x00, 0x00, 0x2C, 0x10,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x13, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x05,
-    0x00, 0x07, 0x00, 0x09, 0x00, 0x07, 0x00, 0x0B, 0x00, 0x2F, 0x10, 0x00, 0x00, 0x00, 0x00,
-    0x2C, 0x0E, 0x00, 0x0C, 0x00, 0x26, 0x00, 0x0C, 0x00, 0x26, 0x00, 0x0E, 0x00, 0x26, 0x00,
-    0x0B, 0x00, 0x00, 0x00, 0x00, 0x00, 0x09, 0x00, 0x0B, 0x00, 0x10, 0x00, 0x26, 0x00, 0x10,
-    0x00, 0x12, 0x00, 0x26, 0x00, 0x17, 0x00, 0x26, 0x00, 0x15, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x12, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x14, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x13, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00
-};
-#endif
-
 void convertToPETSCII(char* string)
 {
     for (char* c = string; *c; c++) {
@@ -5769,11 +4369,7 @@ void convertToPETSCII(char* string)
 void writeToScreenMemory(address_t address, uint8_t value, uint8_t color, uint8_t yOffset)
 {
     SCREEN_MEMORY[address] = value;
-#ifdef PLATFORM_COLOR_SUPPORT
     platform->writeToScreenMemory(address, value, color, yOffset);
-#else
-    platform->writeToScreenMemory(address, value);
-#endif
 }
 
 // NOTES ABOUT UNIT TYPES

@@ -9,17 +9,6 @@
 
 extern uint8_t *DESTRUCT_PATH; // Destruct path array (256 bytes)
 extern uint8_t *TILE_ATTRIB;   // Tile attrib array (256 bytes)
-#ifndef PLATFORM_SPRITE_SUPPORT
-extern uint8_t *TILE_DATA_TL;  // Tile character top-left (256 bytes)
-extern uint8_t *TILE_DATA_TM;  // Tile character top-middle (256 bytes)
-extern uint8_t *TILE_DATA_TR;  // Tile character top-right (256 bytes)
-extern uint8_t *TILE_DATA_ML;  // Tile character middle-left (256 bytes)
-extern uint8_t *TILE_DATA_MM;  // Tile character middle-middle (256 bytes)
-extern uint8_t *TILE_DATA_MR;  // Tile character middle-right (256 bytes)
-extern uint8_t *TILE_DATA_BL;  // Tile character bottom-left (256 bytes)
-extern uint8_t *TILE_DATA_BM;  // Tile character bottom-middle (256 bytes)
-extern uint8_t *TILE_DATA_BR;  // Tile character bottom-right (256 bytes)
-#endif
 
 // These arrays can go anywhere in RAM
 extern uint8_t UNIT_TIMER_A[64];   // Primary timer for units (64 bytes)
@@ -29,11 +18,9 @@ extern uint8_t EXP_BUFFER[16];     // Explosion Buffer (16 bytes)
 extern uint8_t MAP_PRECALC[MAP_WINDOW_SIZE];    // Stores pre-calculated objects for map window (77 bytes)
 extern uint8_t MAP_PRECALC_DIRECTION[MAP_WINDOW_SIZE];    // Stores pre-calculated object directions for map window (77 bytes)
 extern uint8_t MAP_PRECALC_TYPE[MAP_WINDOW_SIZE];    // Stores pre-calculated object types for map window (77 bytes)
-#ifdef OPTIMIZED_MAP_RENDERING
 extern uint8_t PREVIOUS_MAP_BACKGROUND[MAP_WINDOW_SIZE];
 extern uint8_t PREVIOUS_MAP_FOREGROUND[MAP_WINDOW_SIZE];
 extern uint8_t PREVIOUS_MAP_FOREGROUND_VARIANT[MAP_WINDOW_SIZE];
-#endif
 
 // The following are the locations where the current
 // key controls are stored.  These must be set before
@@ -41,7 +28,6 @@ extern uint8_t PREVIOUS_MAP_FOREGROUND_VARIANT[MAP_WINDOW_SIZE];
 extern uint8_t KEY_CONFIG[26];
 
 // MAP FILES CONSIST OF EVERYTHING FROM THIS POINT ON
-#ifdef _PSP
 extern uint8_t MAP_DATA[8960];
 extern uint8_t* UNIT_TYPE;
 extern uint8_t* UNIT_LOC_X;
@@ -52,17 +38,6 @@ extern uint8_t* UNIT_C;
 extern uint8_t* UNIT_D;
 extern int8_t* UNIT_HEALTH;
 extern uint8_t* MAP;
-#else
-extern uint8_t UNIT_TYPE[64];  // Unit type 0=none (64 bytes)  
-extern uint8_t UNIT_LOC_X[64]; // Unit X location (64 bytes)
-extern uint8_t UNIT_LOC_Y[64]; // Unit X location (64 bytes)
-extern uint8_t UNIT_A[64];
-extern uint8_t UNIT_B[64];
-extern uint8_t UNIT_C[64];
-extern uint8_t UNIT_D[64];
-extern int8_t UNIT_HEALTH[64];    // Unit health (0 to 11) (64 bytes)
-extern uint8_t MAP[8 * 1024];      // Location of MAP (8K)
-#endif
 // END OF MAP FILE
 
 extern uint8_t TILE;           // The tile number to be plotted
@@ -141,15 +116,6 @@ extern char MSG_MUSICON[];
 extern char MSG_MUSICOFF[];
 extern uint8_t SELECTED_MAP;
 extern char MAP_NAMES[];
-#ifndef PLATFORM_MODULE_BASED_AUDIO
-// THE FOLLOWING ARE USED BY THE SOUND SYSTEM*
-extern uint8_t TEMPO_TIMER; // used for counting down to the next tick
-extern uint8_t TEMPO; // How many IRQs between ticks
-extern uint8_t DATA_LINE; // used for playback to keep track of which line we are executing.
-extern uint8_t ARP_MODE; // 0=no 1=major 2=minor 3=sus4
-extern uint8_t CHORD_ROOT; // root note of the chord
-extern uint8_t SOUND_EFFECT; // FF=OFF or number of effect in progress
-#endif
 extern uint8_t MUSIC_ON; // 0=off 1=on
 
 void DISPLAY_LOAD_MESSAGE1();
@@ -178,11 +144,7 @@ void AFTER_MOVE_SNES();
 void TOGGLE_MUSIC();
 void START_IN_GAME_MUSIC();
 
-#ifdef PLATFORM_MODULE_BASED_AUDIO
 extern Platform::Module LEVEL_MUSIC[];
-#else
-extern uint8_t LEVEL_MUSIC[];
-#endif
 
 void CHEATER();
 bool PAUSE_GAME();
@@ -233,12 +195,9 @@ void MAP_PRE_CALCULATE();
 
 extern uint8_t PRECALC_ROWS[];
 
-#ifdef OPTIMIZED_MAP_RENDERING
 void INVALIDATE_PREVIOUS_MAP();
-#endif
 void DRAW_MAP_WINDOW();
 
-#ifdef PLATFORM_LIVE_MAP_SUPPORT
 void TOGGLE_LIVE_MAP();
 void TOGGLE_LIVE_MAP_ROBOTS();
 void DRAW_LIVE_MAP();
@@ -246,18 +205,9 @@ void DRAW_LIVE_MAP();
 extern uint8_t LIVE_MAP_ON;
 extern uint8_t LIVE_MAP_ROBOTS_ON;
 extern uint8_t LIVE_MAP_PLAYER_BLINK;
-#endif
 
-#ifdef PLATFORM_TILE_BASED_RENDERING
 void PLOT_TILE(uint16_t destination, uint16_t x, uint16_t y);
 void PLOT_TRANSPARENT_TILE(uint16_t destination, uint16_t x, uint16_t y);
-#else
-void PLOT_TILE(uint16_t destination);
-void PLOT_TRANSPARENT_TILE(uint16_t destination);
-#endif
-#ifndef PLATFORM_CURSOR_SUPPORT
-void REVERSE_TILE();
-#endif
 void CHECK_FOR_WINDOW_REDRAW();
 void DECWRITE(uint16_t destination, uint8_t color = 10);
 
@@ -348,12 +298,7 @@ void EMP_FLASH();
 void ANIMATE_WATER();
 
 extern uint8_t WATER_TIMER;
-#ifdef PLATFORM_IMAGE_BASED_TILES
 extern uint8_t ANIM_STATE;
-#else
-extern uint8_t WATER_TEMP1;
-extern uint8_t HVAC_STATE;
-#endif
 extern uint8_t CINEMA_STATE;
 
 void ELEVATOR_SELECT();
@@ -377,25 +322,11 @@ void PET_SCREEN_SHAKE();
 void PET_BORDER_FLASH();
 
 extern uint8_t FLASH_STATE;
-#ifndef PLATFORM_IMAGE_SUPPORT
-extern uint8_t OUCH1[];
-extern uint8_t OUCH2[];
-extern uint8_t OUCH3[];
-#endif
 
 void DEMATERIALIZE();
 void ANIMATE_PLAYER();
 void PLAY_SOUND(int);
 
-#ifndef PLATFORM_MODULE_BASED_AUDIO
-extern uint8_t* PATTERN_TEMP;
-extern uint8_t DATA_LINE_TEMP;
-extern uint8_t TEMPO_TEMP;
-
-extern uint8_t* SOUND_LIBRARY[];
-
-void MUSIC_ROUTINE();
-#endif
 void STOP_SONG();
 void BACKGROUND_TASKS();
 
@@ -489,64 +420,8 @@ void REQUEST_WALK_UP();
 void CHECK_FOR_UNIT();
 void CHECK_FOR_HIDDEN_UNIT();
 
-#ifndef PLATFORM_IMAGE_SUPPORT
-extern uint8_t INTRO_TEXT[];
-extern uint8_t SCR_TEXT[];
-extern uint8_t SCR_ENDGAME[];
-#endif
 extern uint8_t SCR_CUSTOM_KEYS[];
 extern char CINEMA_MESSAGE[];
-#ifndef PLATFORM_IMAGE_SUPPORT
-extern uint8_t WEAPON1A[];
-extern uint8_t WEAPON1B[];
-extern uint8_t WEAPON1C[];
-extern uint8_t WEAPON1D[];
-extern uint8_t PISTOL1A[];
-extern uint8_t PISTOL1B[];
-extern uint8_t PISTOL1C[];
-extern uint8_t PISTOL1D[];
-extern uint8_t TBOMB1A[];
-extern uint8_t TBOMB1B[];
-extern uint8_t TBOMB1C[];
-extern uint8_t TBOMB1D[];
-extern uint8_t EMP1A[];
-extern uint8_t EMP1B[];
-extern uint8_t EMP1C[];
-extern uint8_t EMP1D[];
-extern uint8_t MAG1A[];
-extern uint8_t MAG1B[];
-extern uint8_t MAG1C[];
-extern uint8_t MAG1D[];
-extern uint8_t MED1A[];
-extern uint8_t MED1B[];
-extern uint8_t MED1C[];
-extern uint8_t MED1D[];
-#endif
-#ifndef PLATFORM_MODULE_BASED_AUDIO
-extern uint8_t NOTE_FREQ[];
-extern uint8_t NOTE_OCTAVE[];
-extern uint8_t SND_EXPLOSION[];
-extern uint8_t SND_MEDKIT[];
-extern uint8_t SND_EMP[];
-extern uint8_t SND_MAGNET[];
-extern uint8_t SND_SHOCK[];
-extern uint8_t SND_MOVE_OBJ[];
-extern uint8_t SND_PLASMA[];
-extern uint8_t SND_PISTOL[];
-extern uint8_t SND_ITEM_FOUND[];
-extern uint8_t SND_ERROR[];
-extern uint8_t SND_CYCLE_WEAPON[];
-extern uint8_t SND_CYCLE_ITEM[];
-extern uint8_t SND_DOOR[];
-extern uint8_t SND_MENU_BEEP[];
-extern uint8_t SND_SHORT_BEEP[];
-extern uint8_t INTRO_MUSIC[];
-extern uint8_t WIN_MUSIC[];
-extern uint8_t LOSE_MUSIC[];
-extern uint8_t IN_GAME_MUSIC1[];
-extern uint8_t IN_GAME_MUSIC2[];
-extern uint8_t IN_GAME_MUSIC3[];
-#endif
 
 void convertToPETSCII(char* string);
 void writeToScreenMemory(address_t address, uint8_t value, uint8_t color = 10, uint8_t yOffset = 0);
